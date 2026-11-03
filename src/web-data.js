@@ -1,12 +1,11 @@
-// データの書き出し・読み込みを、ブラウザーの仕組みだけで行う (Android 版と、ブラウザーで画面だけを開いたとき)。
-// パソコン版の window.dataStore (preload.cjs → data-store.js) と同じ形の操作を用意する:
+// データの書き出し・読み込みを、ブラウザーの仕組みだけで行う (Android 版と Web 版)。次の操作を用意する:
 //   exportData() → { saved }、importData() → { data } | { error: 'invalid' } | { canceled: true }、replace(data) → true / false
-// - データは localStorage にある (renderer.js の save)。ファイルの形はパソコン版と同じ (data-file.js) なので、
-//   パソコン版で書き出したファイルを Android 版で読み込むことも、その逆もできる
+// - データは localStorage にある (renderer.js の save)。ファイルの形は data-file.js が決める。
+//   以前のパソコン版で書き出したファイルも、同じ形なので読み込める。Android 版と Web 版の間でも、書き出して読み込める
 // - 書き出したファイルをどこへ渡すか (share) と、ファイルの選び方 (pickFile) は、使う側が決める (Android 版は共有の画面)
 import { DATA_KEYS, MAX_VALUE_LENGTH, serializeData, parseDataFile, backupFileName } from './data-file.js';
 
-// ファイルの大きさの上限 (パソコン版の data-store.js と同じ)
+// ファイルの大きさの上限 (項目ごとの上限 × 項目の数)
 const MAX_FILE_SIZE = DATA_KEYS.length * MAX_VALUE_LENGTH;
 
 // ファイル選択の画面を開き、選ばれたファイルを返す (やめたら null)
@@ -65,7 +64,7 @@ export function createWebData({ storage, share = downloadFile, pickFile = pickJs
       }
     },
 
-    // 読み込んだデータで入れ替える。ファイルにない項目は消す (パソコン版の store:replace と同じ)
+    // 読み込んだデータで入れ替える。ファイルにない項目は消す
     async replace(next) {
       const parsed = parseDataFile(serializeData(next));
       if (!parsed) return false;

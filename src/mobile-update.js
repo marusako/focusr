@@ -1,5 +1,5 @@
-// スマホ版 (Capacitor) の更新のお知らせの決まりごと (画面にも Electron にも依存しない純粋な関数)。
-// APK は、パソコン版と同じ GitHub Release に focusr-<版>.apk として置く (.github/workflows/android-build.yml)。
+// スマホ版 (Capacitor) の更新のお知らせの決まりごと (画面 (DOM) に依存しない純粋な関数)。
+// APK は、GitHub Release に focusr-<版>.apk として置く (.github/workflows/android-build.yml)。
 // スマホ版は起動したときに最新の Release を見て、今より新しい版の APK があれば知らせる。
 // Play 以外から入れたアプリは黙って入れ替えられないので、ダウンロードを開いて、利用者に「インストール」を押してもらう
 const VERSION = /^v?(\d+)\.(\d+)\.(\d+)$/;

@@ -1,8 +1,8 @@
-// 保存データのファイル (data.json) と、書き出し・読み込みのファイルの形 (画面にも Electron にも依存しない純粋な関数)。
+// 書き出し・読み込みのファイルの形 (画面 (DOM) に依存しない純粋な関数)。
 // 形: { app: 'focusr', version: 1, savedAt: '2026-10-10T12:00:00.000Z', data: { settings, events, timetable, focusLog, xp } }
 // - data の中身の正しさ (値の範囲など) は、読み込んだあとに画面側の parseSettings・parseEvents などが確かめる。
 //   ここでは、知っている項目だけを残すことと、ファイルの形だけを確かめる
-// - 取り込んだ曲と壁紙のファイルは大きいので、ここには入れない (media フォルダーにある)
+// - 取り込んだ曲と壁紙のファイルは大きいので、ここには入れない (IndexedDB にある。web-media.js)
 
 // 以前の版にあった stats (今日の完了回数) は、メイン画面の統計の行と一緒になくした。保存データや書き出したファイルに残っていても読まない
 export const DATA_KEYS = Object.freeze(['settings', 'events', 'timetable', 'focusLog', 'xp']);

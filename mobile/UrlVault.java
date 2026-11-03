@@ -17,7 +17,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
 // 外部カレンダーの URL を暗号化する、このアプリだけの小さな部品 (画面からは Capacitor.Plugins.UrlVault で呼ぶ。src/web-feeds.js)。
-// パソコン版の safeStorage と同じく、「暗号化した文字 (base64)」にして返し、使うときに元に戻す。
+// 「暗号化した文字 (base64)」にして返し、使うときに元に戻す。
 // - 鍵は Android の Keystore (鍵を端末の安全な場所にしまい、アプリにも鍵そのものは見せない仕組み) で作ってしまう
 // - 暗号は AES-256-GCM (中身を書き換えられたら、戻すときに失敗する)。毎回ちがう IV (12 バイト) を、暗号文の前に付ける
 // - 鍵は端末の外に出せないので、ほかの端末に写したデータは戻せない (画面では「一度外して、追加し直して」と出す)

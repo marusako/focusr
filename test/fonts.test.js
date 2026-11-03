@@ -42,7 +42,7 @@ test('どのフォントにも、Windows のフォントのあと・汎用のフ
   for (const font of TIMER_FONTS) {
     const names = font.family.split(',').map((name) => name.trim().replace(/'/g, ''));
     const index = names.findIndex((name) => name.startsWith('Focusr '));
-    assert.ok(index > 0, `${font.id}: 同梱したフォントは Windows のフォントより後 (パソコン版の見た目は変えない)`);
+    assert.ok(index > 0, `${font.id}: 同梱したフォントは Windows のフォントより後 (Windows での見た目は変えない)`);
     assert.equal(index, names.length - 2, `${font.id}: 同梱したフォントは汎用のフォントの直前`);
   }
 });

@@ -28,9 +28,6 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm ci
-        env:
-          # スマホ版に Electron 本体 (約 100MB) は不要なのでダウンロードしない
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm test
       - name: Android のプロジェクトを作り、画面 (src) と部品を入れる
         run: |
@@ -42,7 +39,7 @@ jobs:
           [ -f "$DIR/MainActivity.java" ] || { echo "::error::Capacitor の MainActivity が見つからない ($DIR)"; exit 1; }
           cp mobile/*.java "$DIR/"
           ls "$DIR"
-      - name: アプリのアイコン (mobile/res。パソコン版の時計を描き直したもの) で、Capacitor の初めのアイコンを置きかえる
+      - name: アプリのアイコン (mobile/res。以前のパソコン版の時計を描き直したもの) で、Capacitor の初めのアイコンを置きかえる
         run: |
           RES=android/app/src/main/res
           [ -f "$RES/mipmap-anydpi-v26/ic_launcher.xml" ] || { echo "::error::Capacitor のアイコンの設定が見つからない ($RES)"; exit 1; }
@@ -64,7 +61,7 @@ jobs:
           sed -i 's#</manifest>#    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n</manifest>#' "$M"
           grep -q 'NowPlayingService' "$M" || { echo "::error::サービスを AndroidManifest.xml に足せなかった"; exit 1; }
           grep -nE 'NowPlayingService|TimerNoticeReceiver|FOREGROUND_SERVICE|WAKE_LOCK' "$M"
-      - name: 版の番号を入れる (versionName はパソコン版と同じ、versionCode は版から作る。src/mobile-update.js)
+      - name: 版の番号を入れる (versionName は package.json の version、versionCode は版から作る。src/mobile-update.js)
         run: |
           VERSION=$(node -p "require('./package.json').version")
           CODE=$(node --input-type=module -e "import { versionCode } from './src/mobile-update.js'; console.log(versionCode('$VERSION'))")

@@ -1,5 +1,4 @@
-// 取り込んだ壁紙・BGM を、ブラウザーの仕組みだけでしまう (Android 版と、ブラウザーで画面だけを開いたとき)。
-// パソコン版の window.media (preload.cjs → media-store.js) と同じ形の操作を用意する:
+// 取り込んだ壁紙・BGM を、ブラウザーの仕組みだけでしまう (Android 版と Web 版)。次の操作を用意する:
 //   list(kind) → [{ file, name }]、import(kind) → { added, skipped }、remove(kind, file)、cover(file) → { mime, data } | null
 // - ファイルは <input type="file"> で選ぶ (Android 版では、Capacitor が Android のファイル選択の画面につなぐ)
 // - 選んだファイルの中身は IndexedDB (ブラウザーが持つデータベース) にしまう。アプリを更新しても残り、アンインストールすると消える

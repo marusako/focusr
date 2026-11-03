@@ -1,5 +1,5 @@
 // タイマーのプリセット (作業・短い休憩・長い休憩・長い休憩までの回数の組) の決まりごと。
-// 画面にも Electron にも依存しない純粋関数だけにして、テストで確かめられるようにしている。
+// 画面 (DOM) に依存しない純粋関数だけにして、テストで確かめられるようにしている。
 // 値の範囲 (RANGES) は settings.js から引数で受け取る (settings.js もこのファイルを読むので、お互いを読み合わないようにする)
 
 export const PRESET_KEYS = Object.freeze(['workMinutes', 'shortBreakMinutes', 'longBreakMinutes', 'longBreakInterval']);

@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <!-- CSP: 自分のファイル以外のスクリプトや CSS を読み込ませない安全対策。
-       取り込んだ壁紙・BGM は、アプリ専用の読み込み口 app-media: (パソコン版) か blob: (Android 版。web-media.js) からだけ読めるようにする。
+       取り込んだ壁紙・BGM は、blob: (web-media.js が IndexedDB から作る URL) からだけ読めるようにする。
        外との通信は、スマホ版が最新の Release を確かめる GitHub の API (api.github.com) だけ許す -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com; style-src 'self'; img-src 'self' app-media: blob:; media-src 'self' app-media: blob:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:">
   <!-- viewport-fit=cover: Android 版で、カメラの穴のまわりまで画面を広げる (ないと Capacitor がそこに余白を入れて暗い帯になる)。
        上の端に置くものは、style.css で env(safe-area-inset-top) の分だけ下げる -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -25,7 +25,6 @@
 
   <div class="update-banner" id="update-banner" role="status" hidden>
     <span id="update-text"></span>
-    <progress id="update-progress" max="100" value="0" hidden></progress>
     <span class="update-actions">
       <button type="button" id="update-action" class="small"></button>
       <button type="button" id="update-later" class="small ghost" data-i18n="later"></button>
@@ -44,12 +43,6 @@
     </button>
     <button type="button" class="icon-button" id="open-calendar" data-i18n-aria="calendar" aria-haspopup="dialog">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5h15v13h-15zM4.5 10.5h15M8.5 4v4.5M15.5 4v4.5"/></svg>
-    </button>
-    <button type="button" class="icon-button" id="toggle-fullscreen" hidden>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path class="icon-enter" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>
-        <path class="icon-exit" d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/>
-      </svg>
     </button>
     <button type="button" class="icon-button" id="open-settings" data-i18n-aria="settings" aria-haspopup="dialog">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.3 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.3 2.5h4l.3-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
@@ -108,7 +101,7 @@
   </main>
 
   <!-- 再生中の画面 (YouTube Music のように、再生バーを押すと開く。renderer.js の setExpanded)。
-       パソコン版: 再生バーの上に重ね、左に大きなジャケット、右にキュー (再生リスト)。
+       パソコンの画面 (Web 版): 再生バーの上に重ね、左に大きなジャケット、右にキュー (再生リスト)。
        スマホ版: 画面全体に重ね、再生バー (同じ部品) を大きな操作の並びにして下に置く。キューは一番下のつまみで開く。下にスワイプで閉じる。
        どちらも、上に残り時間とモードを小さく出す (タイマーが隠れても時間が分かるように) -->
   <section class="now-playing" id="now-playing" data-i18n-aria="nowPlaying" hidden>
@@ -443,8 +436,8 @@
             <select id="schedule-reminder" class="select"></select>
           </div>
         </section>
-        <!-- 外部カレンダー (Google カレンダーなどの iCal 形式の非公開 URL)。パソコン版と Android 版で出す (renderer.js)。
-             URL は calendar-feeds.js (パソコン版) と web-feeds.js (Android 版) が暗号化して持ち、画面には戻さない -->
+        <!-- 外部カレンダー (Google カレンダーなどの iCal 形式の非公開 URL)。Android 版でだけ出す (renderer.js)。
+             URL は web-feeds.js が暗号化して持ち、画面には戻さない -->
         <section class="feeds-section" id="feeds-section" aria-labelledby="feeds-title" hidden>
           <div class="day-header">
             <h3 class="section-title" id="feeds-title" data-i18n="feedsTitle"></h3>
@@ -575,7 +568,7 @@
         <label for="language" data-i18n="language"></label>
         <select id="language" class="select"></select>
       </div>
-      <!-- データの書き出し・読み込み (パソコン版・Android 版・ブラウザーで出す)。取り込んだ曲・壁紙のファイルは含めない -->
+      <!-- データの書き出し・読み込み (Android 版・Web 版で出す)。取り込んだ曲・壁紙のファイルは含めない -->
       <div class="data-tools">
         <h3 class="section-title" data-i18n="dataTitle"></h3>
         <div class="data-buttons">
@@ -589,7 +582,7 @@
       <h3 class="section-title" data-i18n="credits"></h3>
       <dl class="credits">
         <dt data-i18n="creditAuthor"></dt>
-        <dd>marusako <button type="button" class="link-button" id="open-repository" hidden>GitHub</button></dd>
+        <dd>marusako</dd>
         <dt data-i18n="creditDevelopedWith"></dt>
         <dd data-i18n="creditClaude"></dd>
         <dt>Pomodoro Technique®</dt>

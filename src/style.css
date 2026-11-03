@@ -11,7 +11,7 @@
 body[data-mode='shortBreak'] { --accent: #2f9e8f; }
 body[data-mode='longBreak'] { --accent: #3d7bd9; }
 
-/* ダークの配色: 「Dark」を選んだとき、または「Auto」で Windows がダークのとき (data-theme は renderer.js が付ける) */
+/* ダークの配色: 「Dark」を選んだとき、または「Auto」で端末 (OS) がダークのとき (data-theme は renderer.js が付ける) */
 :root[data-theme='dark'] {
   --bg: #1c1917;
   --surface: #292524;
@@ -45,9 +45,9 @@ body {
   place-items: center;
   /* 上の 64px は右上のボタン (.top-actions) の場所。タイマーは残りの真ん中に置き、ボタンと重ならないようにする。
      下は再生バー (.player) が出ているときだけ、その高さ (--player-space) を空ける。
-     Android 版でカメラの穴が上にあるときは、その分 (safe-area-inset-top) も空ける (パソコン版では 0)。
+     Android 版でカメラの穴が上にあるときは、その分 (safe-area-inset-top) も空ける (Web 版では 0)。
      帯やカメラの穴の分は、Capacitor が入れる --safe-area-inset-* を先に使う (古い Android の WebView は env() の値が正しくないため。
-     Capacitor の SystemBars の公式ドキュメントより)。パソコン版にはないので env() になり、0 になる */
+     Capacitor の SystemBars の公式ドキュメントより)。Web 版にはないので env() になり、0 になる */
   padding-top: calc(64px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
   padding-bottom: var(--player-space);
   user-select: none;
@@ -207,7 +207,7 @@ h2, h3 { margin: 0; font-weight: 600; }
 .readout-sub { grid-row: 3; align-self: start; margin-top: calc(10 * var(--u)); }
 /* Windows のフォントがない環境 (Android 版など) で時刻に使う、同梱したフォント (src/timer-fonts、どれも OFL)。
    数字と「:」だけに絞ってある (fonttools の subset)。Selawik は予約されたフォント名があるため、手を加えた版を Focusr Sans と名付けている。
-   どれも fonts.js の一覧で Windows のフォントのあとに書いているので、パソコン版では読み込まれない */
+   どれも fonts.js の一覧で Windows のフォントのあとに書いているので、Windows では読み込まれない */
 @font-face { font-family: 'Focusr Sans'; src: url('timer-fonts/focusr-sans-semibold.woff2') format('woff2'); font-weight: 600; unicode-range: U+0030-003A; font-display: swap; }
 @font-face { font-family: 'Focusr Sans Light'; src: url('timer-fonts/open-sans-light.woff2') format('woff2'); font-weight: 300; unicode-range: U+0030-003A; font-display: swap; }
 @font-face { font-family: 'Focusr Black'; src: url('timer-fonts/archivo-black.woff2') format('woff2'); font-weight: 900; unicode-range: U+0030-003A; font-display: swap; }
@@ -319,12 +319,12 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible), select:focus:
   background: transparent;
   color: var(--muted);
 }
-/* display: grid があると hidden が効かないので、隠すときは明示する (全画面のボタンは、Electron の外では隠す) */
+/* display: grid があると hidden が効かないので、隠すときは明示する */
 .icon-button[hidden] { display: none; }
 .icon-button:hover { color: var(--text); background: color-mix(in srgb, var(--surface) 70%, transparent); }
 .icon-button svg { width: 20px; height: 20px; fill: currentColor; stroke: currentColor; stroke-width: 0; }
 #close-settings svg, #close-calendar svg, #close-timer svg, .month-nav svg, #open-calendar svg, #open-timer svg { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-/* 右上の全画面・設定ボタン。どんな壁紙の上でも見つけやすいよう、すりガラスの丸い背景と通常の文字色にする */
+/* 右上のボタン (タイマーの設定・カレンダー・設定)。どんな壁紙の上でも見つけやすいよう、すりガラスの丸い背景と通常の文字色にする */
 .top-actions { position: fixed; top: calc(20px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); right: 20px; z-index: 1; display: flex; gap: 8px; }
 .top-actions .icon-button {
   width: 44px;
@@ -336,11 +336,6 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible), select:focus:
 }
 .top-actions .icon-button:hover { background: var(--surface); }
 .top-actions .icon-button svg { width: 24px; height: 24px; }
-/* 全画面ボタンの図は、線で描く。全画面のときは「内向きの角」、普段は「外向きの角」を出す */
-#toggle-fullscreen svg { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-#toggle-fullscreen .icon-exit,
-#toggle-fullscreen[data-fullscreen='true'] .icon-enter { display: none; }
-#toggle-fullscreen[data-fullscreen='true'] .icon-exit { display: inline; }
 
 /* ---- BGM の再生バー (画面の下に固定。YouTube Music の再生バーのように、上の端に再生位置の線を置く) ---- */
 .player {
@@ -357,7 +352,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible), select:focus:
 .player[hidden] { display: none; }
 /* Android 版は、再生バーとキューのつまみを、下の帯 (ナビゲーション。「ホームに戻る」の白い線) の上に持ち上げる (--nav-lift)。
    帯から始めた指の動きは「ホームに戻る」の操作なので、アプリでは使わない (swipe.js)。帯が細い端末でも、画面の下の端の丸みから 16px 離す。
-   背景は下の端まで伸ばす。指で押しやすく読みやすいように、パソコン版より太くする (中身の高さ 80px) */
+   背景は下の端まで伸ばす。指で押しやすく読みやすいように、パソコンの画面より太くする (中身の高さ 80px) */
 .is-mobile { --nav-lift: max(16px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); }
 .is-mobile .player { height: calc(80px + var(--nav-lift)); padding-bottom: var(--nav-lift); }
 :root.is-mobile.has-player { --player-space: calc(88px + var(--nav-lift)); }
@@ -590,7 +585,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible), select:focus:
 .volume-popup output { text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* ---- 再生中の画面 (再生バーを押すと開く。YouTube Music の再生中の画面のように) ----
-   パソコン版: 再生バーの上に重ね、左に大きなジャケットと曲名、右にキュー (再生リスト)。上に残り時間を小さく出す */
+   パソコンの画面 (Web 版): 再生バーの上に重ね、左に大きなジャケットと曲名、右にキュー (再生リスト)。上に残り時間を小さく出す */
 .now-playing {
   position: fixed;
   inset: 0 0 64px 0;
@@ -865,8 +860,6 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible), select:focus:
 .credits { display: grid; gap: 4px; margin: 0; font-size: 13px; }
 .credits dt { color: var(--muted); font-size: 12px; margin-top: 6px; }
 .credits dd { margin: 0; line-height: 1.6; }
-/* 文章の中に置く、リンクのように見えるボタン */
-.link-button { padding: 0 4px; background: transparent; color: var(--accent); text-decoration: underline; font-size: inherit; border-radius: 4px; }
 .version { margin: auto auto 0; color: var(--muted); font-size: 12px; text-align: right; }
 
 /* ---- ホイールピッカー (iPhone のタイマーのように、スクロールして数値を選ぶ) ---- */
@@ -917,7 +910,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible), select:focus:
 }
 .wheel-item.selected { color: var(--text); font-size: 20px; font-weight: 600; }
 
-/* ---- 自動アップデートの案内 (画面上部に固定) ---- */
+/* ---- 更新の案内 (Android 版。画面上部に固定) ---- */
 .update-banner {
   position: fixed;
   top: 0;
@@ -935,7 +928,6 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible), select:focus:
   z-index: 1;
 }
 .update-banner[hidden] { display: none; }
-.update-banner progress { flex: 1; min-width: 80px; height: 6px; accent-color: var(--accent); }
 .update-actions { display: flex; gap: 6px; }
 .update-banner button { padding: 4px 12px; font-size: 12px; background: var(--accent); color: #fff; }
 .update-banner button.ghost { background: transparent; color: var(--muted); }

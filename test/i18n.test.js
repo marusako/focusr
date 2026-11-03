@@ -33,7 +33,7 @@ test('選んだ言語の表を使い、差し込み部分を置き換える', ()
   assert.equal(translate('en', 'start'), 'Start');
   assert.equal(translate('ja', 'start'), 'スタート');
   assert.equal(translate('ko', 'start'), '시작');
-  assert.equal(translate('en', 'downloading', { percent: 42 }), 'Downloading… 42%');
+  assert.equal(translate('en', 'updateAvailable', { version: '3.0.0' }), 'Version 3.0.0 is available');
   assert.equal(translate('ja', 'notifyStarted', { mode: translate('ja', 'modeText.shortBreak') }), '短い休憩を開始しました。');
 });
 
@@ -46,7 +46,7 @@ test('知らない項目はエラーにする (書き間違いにすぐ気づけ
   assert.throws(() => translate('en', 'noSuchKey'), /noSuchKey/);
 });
 
-test('Windows の言語から、初めの言語を決める', () => {
+test('端末・ブラウザーの言語から、初めの言語を決める', () => {
   assert.equal(detectLanguage('ja'), 'ja');
   assert.equal(detectLanguage('ja-JP'), 'ja');
   assert.equal(detectLanguage('ko-KR'), 'ko');

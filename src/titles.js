@@ -1,5 +1,5 @@
 // 称号。レベルから決まる 13 段階の呼び名。保存するものはなく、今のレベルからいつでも計算できる。
-// 画面 (DOM) にも Electron にも依存しない純粋な関数だけを置く。名前は翻訳の項目 title.<id> にある
+// 画面 (DOM) に依存しない純粋な関数だけを置く。名前は翻訳の項目 title.<id> にある
 export const TITLES = Object.freeze([
   { id: 't01', level: 1 },
   { id: 't02', level: 2 },

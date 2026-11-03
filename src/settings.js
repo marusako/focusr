@@ -19,7 +19,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   bgmVolume: 40, // 作業中の BGM
   seVolume: 40, // ボタンの操作音
   seSound: DEFAULT_SE, // ボタンの操作音の種類 (se-sounds.js の SE_SOUNDS)
-  theme: 'system', // 'system' は Windows の設定に合わせる
+  theme: 'system', // 'system' は端末 (OS) の設定に合わせる
   wallpaper: 'none', // 'none' / 'preset:<id>' / 'import:<保存ファイル名>'
   cardOpacity: 72, // 壁紙の上のタイマーのカード (すりガラス) の不透明度 (0〜100、0 は完全に透明)
   timerFont: DEFAULT_TIMER_FONT, // タイマーの数字のフォント (fonts.js の TIMER_FONTS)
@@ -29,7 +29,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   bgmShuffle: false, // 取り込んだ曲をシャッフルして再生するか
   bgmPlaylists: [], // 自分で作ったプレイリスト (playlist.js。{ id, name, tracks })
   bgmPlaylist: ALL_TRACKS, // 再生する一覧。'all' (全曲) か、bgmPlaylists の id
-  language: null, // i18n.js の LANGUAGES の id。null は「まだ決めていない」(初回起動時に Windows の言語から決める)
+  language: null, // i18n.js の LANGUAGES の id。null は「まだ決めていない」(初回起動時に端末・ブラウザーの言語から決める)
   // 以前の版にあった appMode (時間割モード) はなくした。保存データに残っていても読まない
   scheduleReminder: 0, // 予定 (カレンダーの予定と毎週のコマ) の何分前に知らせるか (schedule.js の REMINDER_MINUTES。0 は知らせない)
   timetableGenerate: GENERATE_DEFAULTS, // 「まとめて作る」で最後に使った値 (次に開いたときの初めの値)

@@ -51,7 +51,7 @@ function fakeAudio() {
 
 function setup(source = 'import:a.mp3', { onEnded = () => {} } = {}) {
   const audio = fakeAudio();
-  const player = new BgmPlayer((name) => `app-media://bgm/${name}`, { createAudio: audio.create, onEnded });
+  const player = new BgmPlayer((name) => `blob:bgm/${name}`, { createAudio: audio.create, onEnded });
   player.setVolume(50);
   player.setSource(source);
   return { player, audio };
@@ -82,7 +82,7 @@ test('曲を変えたときは、同じ部品のファイルを差し替えて�
 
   player.setSource('import:b.mp3');
   assert.equal(audio.created.length, 1, '部品を作り直さない');
-  assert.equal(audio.created[0].url, 'app-media://bgm/b.mp3');
+  assert.equal(audio.created[0].url, 'blob:bgm/b.mp3');
   assert.equal(audio.created[0].currentTime, 0);
   assert.equal(audio.created[0].paused, false, '再生中に曲を変えたら、新しい曲も再生を続ける');
 });
@@ -93,7 +93,7 @@ test('曲が終わって次の曲に変えても、同じ部品で鳴らし続�
   audio.created[0].paused = true; // 曲が終わって止まった状態
   audio.created[0].fire('ended');
   assert.equal(audio.created.length, 1);
-  assert.equal(audio.created[0].url, 'app-media://bgm/b.mp3');
+  assert.equal(audio.created[0].url, 'blob:bgm/b.mp3');
   assert.equal(audio.created[0].paused, false);
 });
 
@@ -106,7 +106,7 @@ test('止めている間に曲を変えたら、前の曲は手放し、次に�
   assert.equal(player.position(), null, '手放したあとは位置を返さない');
   player.sync(true);
   assert.equal(audio.created.length, 1);
-  assert.equal(audio.created[0].url, 'app-media://bgm/b.mp3');
+  assert.equal(audio.created[0].url, 'blob:bgm/b.mp3');
   assert.equal(audio.created[0].paused, false);
 });
 

@@ -39,7 +39,7 @@ test('最新の Release に、今より新しい版の APK があれば、その
 
 test('新しくない・APK がない・下書きや試作版の Release なら null', () => {
   assert.equal(apkUpdate(release('v2.9.0', ['focusr-2.9.0.apk']), '2.9.0'), null);
-  assert.equal(apkUpdate(release('v2.10.0', ['latest.yml']), '2.9.0'), null, 'APK を置く前の Release (パソコン版だけ)');
+  assert.equal(apkUpdate(release('v2.10.0', ['latest.yml']), '2.9.0'), null, 'APK を置く前の Release (以前のパソコン版だけ)');
   assert.equal(apkUpdate(release('v2.10.0', ['focusr-2.10.0.apk'], { prerelease: true }), '2.9.0'), null);
   assert.equal(apkUpdate(release('v2.10.0', ['focusr-2.10.0.apk'], { draft: true }), '2.9.0'), null);
   assert.equal(apkUpdate(null, '2.9.0'), null);

@@ -1,4 +1,4 @@
-// 画面の文字の翻訳表と、言語の決め方 (画面にも Electron にも依存しない純粋な関数)。
+// 画面の文字の翻訳表と、言語の決め方 (画面 (DOM) に依存しない純粋な関数)。
 // 英語・日本語・韓国語はこのファイルに、あとから足した言語は locales/ に 1 言語 1 ファイルで置く。
 // どの言語も、項目と差し込み部分 ({mode} など) は英語と同じ (test/i18n.test.js で確かめる)
 import zhHans from './locales/zh-Hans.js';
@@ -55,8 +55,6 @@ export const MESSAGES = Object.freeze({
     presetFull: 'You can save up to {max} presets.',
     presetExists: 'These settings are already saved as a preset.',
     confirmRemovePreset: 'Delete the preset "{name}"?',
-    enterFullScreen: 'Full screen (F11)',
-    exitFullScreen: 'Exit full screen (F11 / Esc)',
     timerSettings: 'Timer settings',
     tabSound: 'Sound',
     tabAppearance: 'Appearance',
@@ -318,15 +316,9 @@ export const MESSAGES = Object.freeze({
     playlistEmptyCustom: 'This playlist has no songs yet. Choose some with Edit.',
     confirmRemovePlaylist: 'Delete the playlist "{name}"? (The songs themselves are kept.)',
     updateAvailable: 'Version {version} is available',
-    downloading: 'Downloading… {percent}%',
-    updateReady: 'The update is ready',
-    updateFailed: 'Failed to download the update',
     updateNow: 'Update',
-    restartToUpdate: 'Restart to update',
-    retry: 'Retry',
     later: 'Later',
     confirmResetSound: 'Reset the volumes, the alarm sound and the sound effect to their defaults? (Your background sound choice is kept.)',
-    confirmRestart: 'Restarting will stop the timer. Update now?',
     importSkipped: 'These files were not imported because their format is not supported:\n{files}',
   },
   ja: {
@@ -352,8 +344,6 @@ export const MESSAGES = Object.freeze({
     presetFull: 'プリセットは {max} 個まで保存できます',
     presetExists: '今の設定は、すでにプリセットにあります',
     confirmRemovePreset: 'プリセット「{name}」を削除しますか?',
-    enterFullScreen: '全画面表示 (F11)',
-    exitFullScreen: '全画面を終了 (F11 / Esc)',
     timerSettings: 'タイマーの設定',
     tabSound: 'サウンド',
     tabAppearance: '外観',
@@ -615,15 +605,9 @@ export const MESSAGES = Object.freeze({
     playlistEmptyCustom: 'このプレイリストには、まだ曲がありません。「編集」から曲を選んでください',
     confirmRemovePlaylist: 'プレイリスト「{name}」を削除しますか?(曲そのものは消えません)',
     updateAvailable: '新しいバージョン {version} があります',
-    downloading: 'ダウンロード中… {percent}%',
-    updateReady: '更新の準備ができました',
-    updateFailed: '更新のダウンロードに失敗しました',
     updateNow: '更新する',
-    restartToUpdate: '再起動して更新',
-    retry: '再試行',
     later: 'あとで',
     confirmResetSound: '音量とアラーム・効果音の音を初期値に戻しますか?(BGM の選択はそのままです)',
-    confirmRestart: '再起動するとタイマーが止まります。今すぐ更新しますか?',
     importSkipped: '次のファイルは対応していない形式のため、取り込みませんでした:\n{files}',
   },
   ko: {
@@ -649,8 +633,6 @@ export const MESSAGES = Object.freeze({
     presetFull: '프리셋은 {max}개까지 저장할 수 있습니다',
     presetExists: '현재 설정은 이미 프리셋에 있습니다',
     confirmRemovePreset: '프리셋 "{name}"을(를) 삭제할까요?',
-    enterFullScreen: '전체 화면 (F11)',
-    exitFullScreen: '전체 화면 종료 (F11 / Esc)',
     timerSettings: '타이머 설정',
     tabSound: '사운드',
     tabAppearance: '화면',
@@ -912,15 +894,9 @@ export const MESSAGES = Object.freeze({
     playlistEmptyCustom: '이 재생 목록에는 아직 곡이 없습니다. 「편집」에서 곡을 선택하세요',
     confirmRemovePlaylist: '재생 목록 「{name}」을(를) 삭제할까요? (곡 자체는 삭제되지 않습니다)',
     updateAvailable: '새 버전이 있습니다 ({version})',
-    downloading: '다운로드 중… {percent}%',
-    updateReady: '업데이트 준비가 완료되었습니다',
-    updateFailed: '업데이트를 다운로드하지 못했습니다',
     updateNow: '업데이트',
-    restartToUpdate: '다시 시작하여 업데이트',
-    retry: '다시 시도',
     later: '나중에',
     confirmResetSound: '음량과 알람·효과음 소리를 기본값으로 되돌릴까요? (BGM 선택은 그대로 유지됩니다)',
-    confirmRestart: '다시 시작하면 타이머가 멈춥니다. 지금 업데이트할까요?',
     importSkipped: '다음 파일은 지원하지 않는 형식이라 가져오지 않았습니다:\n{files}',
   },
 });
@@ -936,7 +912,7 @@ export function translate(language, key, params = {}) {
 // 繁体字を使う地域 (台湾・香港・マカオ)
 const TRADITIONAL_CHINESE = ['hant', 'tw', 'hk', 'mo'];
 
-// 初めて起動したときの言語を、Windows・Android の言語 (例: 'ja-JP') から決める。
+// 初めて起動したときの言語を、端末・ブラウザーの言語 (例: 'ja-JP') から決める。
 // 中国語は、字体 (Hans / Hant) か地域から簡体字と繁体字を分ける (どちらとも分からなければ簡体字)
 export function detectLanguage(locale) {
   const [base, ...rest] = String(locale ?? '').toLowerCase().split('-');

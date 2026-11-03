@@ -16,7 +16,7 @@ function memoryStorage(initial = {}) {
 
 const NOW = new Date(2026, 9, 11, 12, 0, 0);
 
-test('書き出し: localStorage のデータを、パソコン版と同じ形のファイルにして渡す', async () => {
+test('書き出し: localStorage のデータを、data-file.js の形のファイルにして渡す', async () => {
   const storage = memoryStorage({
     settings: JSON.stringify({ focusMinutes: 30 }),
     events: JSON.stringify([{ id: 'a' }]),
@@ -48,7 +48,7 @@ test('読み込み: 選んだファイルが正しい形ならデータを、違
   assert.deepEqual(await read({ size: 10, text: async () => { throw new Error('読めない'); } }), { error: 'invalid' });
 });
 
-test('入れ替え: 読み込んだ項目で置きかえ、ファイルにない項目は消す (パソコン版と同じ)。知らない項目には触らない', async () => {
+test('入れ替え: 読み込んだ項目で置きかえ、ファイルにない項目は消す。知らない項目には触らない', async () => {
   const storage = memoryStorage({ settings: '{}', events: '[]', other: '"そのまま"' });
   const webData = createWebData({ storage });
   assert.equal(await webData.replace({ settings: { focusMinutes: 50 }, focusLog: {} }), true);

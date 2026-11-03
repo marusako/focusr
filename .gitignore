@@ -1,5 +1,6 @@
 node_modules/
-dist/
 release-body.md
 # スマホ版 (Capacitor) の Android のプロジェクト。GitHub Actions の中で毎回作り直すので、git には入れない
 android/
+# 以前の Windows 版 (Electron) のビルドの出力先。手元に古いビルドが残っていることがあるので、git には入れない
+dist/

@@ -1,8 +1,8 @@
 // 外部カレンダー (Google カレンダーなどの iCal 形式の非公開 URL) の一覧・追加・外す・読み直し。
-// パソコン版 (calendar-feeds.js、メインプロセス) と Android 版 (web-feeds.js、画面) の両方で使う。
+// Android 版の web-feeds.js が使う。
 // 保存・暗号化・通信のしかたは、使う側が渡す:
 //   save(feeds)          一覧を保存する (URL は暗号化したもの)
-//   encrypt(text) / decrypt(data)  URL の暗号化と、元に戻すこと (パソコン版は safeStorage、Android 版は Keystore)
+//   encrypt(text) / decrypt(data)  URL の暗号化と、元に戻すこと (Android 版は Keystore)
 //   canEncrypt()         暗号化が使えるか (使えなければ登録させない)
 //   download(url)        .ics を読む → { text } | { error: 'notFound' | 'network' | 'tooLarge' }
 //   onChange()           一覧や予定が変わったとき (画面を描き直す)

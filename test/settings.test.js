@@ -72,7 +72,7 @@ test('言語は、まだ決めていない (null) が既定値で、決まった
   assert.equal(DEFAULT_SETTINGS.language, null);
   for (const language of ['ja', 'en', 'ko', 'zh-Hans', 'zh-Hant', 'es', 'fr', 'de', 'ru', 'si']) assert.equal(parseSettings({ language }).language, language);
   assert.equal(parseSettings({ language: 'xx' }).language, null);
-  // なくした選択肢「日本語 + English」が保存されていたら、まだ決めていない扱いにして、Windows の言語から選び直す
+  // なくした選択肢「日本語 + English」が保存されていたら、まだ決めていない扱いにして、端末・ブラウザーの言語から選び直す
   assert.equal(parseSettings({ language: 'ja-en' }).language, null);
 });
 

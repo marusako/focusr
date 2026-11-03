@@ -19,7 +19,6 @@ import { TOTAL_ID, ongoingItems, focusStepMs, addFocusTime, addFocusCount, focus
 import { INITIAL_UPDATE_STATE, nextUpdateState, isBannerVisible } from './update-status.js';
 import { createWheelPicker } from './wheel-picker.js';
 import { WALLPAPER_PRESETS } from './wallpapers.js';
-import { mediaUrl } from './media-rules.js';
 import { createWebMedia } from './web-media.js';
 import { NOISE_TYPES } from './noise.js';
 import { ALARM_SOUNDS } from './alarms.js';
@@ -28,8 +27,7 @@ import { TIMER_FONTS, timerFont } from './fonts.js';
 import { createWebData } from './web-data.js';
 import { createWebFeeds } from './web-feeds.js';
 import { DEFAULT_PRESETS, MAX_CUSTOM_PRESETS, findMatchingPreset, addCustomPreset, removeCustomPreset, nextCustomNumber } from './presets.js';
-import { escapeAction, backAction } from './fullscreen.js';
-import { DATA_KEYS } from './data-file.js';
+import { backAction } from './back-action.js';
 import { INITIAL_PLAYBACK, shouldPlayBgm, nextNoise, toggleNoise, playerLayerToClose } from './bgm.js';
 import {
   orderTracks, moveTrack, dropIndex, playQueue, nextInQueue, prevInQueue, prevAction, nextRepeatMode, formatTrackTime,
@@ -72,7 +70,6 @@ const els = {
   skip: $('skip'),
   openSettings: $('open-settings'),
   closeSettings: $('close-settings'),
-  fullScreen: $('toggle-fullscreen'),
   cardOpacity: $('card-opacity'),
   cardOpacityOutput: document.querySelector('output[for="card-opacity"]'),
   cardOpacityHint: $('card-opacity-hint'),
@@ -85,7 +82,6 @@ const els = {
   appVersion: $('app-version'),
   updateBanner: $('update-banner'),
   updateText: $('update-text'),
-  updateProgress: $('update-progress'),
   updateAction: $('update-action'),
   updateLater: $('update-later'),
   language: $('language'),
@@ -99,9 +95,8 @@ const els = {
 };
 
 // --- 保存 ---
-// アプリ (Electron) では、保存フォルダーの data.json に保存する (メインプロセスの data-store.js が読み書きする)。
-// Android 版と、ブラウザーで開いたとき (window.dataStore がないとき) は、localStorage (ブラウザ内にデータを文字列で保存する仕組み) を使う
-function loadLocal(key, fallback) {
+// localStorage (ブラウザ内にデータを文字列で保存する仕組み) に、項目ごとに JSON で保存する (Android 版も Web 版も同じ)
+function load(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
@@ -110,38 +105,17 @@ function loadLocal(key, fallback) {
   }
 }
 
-const fileStore = window.dataStore ? window.dataStore.loadAll() : null;
-// まだ data.json がなければ (localStorage に保存していた v1.14 以前から更新した直後)、localStorage の中身を写す。
-// localStorage は消さずに残す (前の版に戻したときや、何かあったときに戻せるように)
-if (fileStore && !fileStore.exists) {
-  for (const key of DATA_KEYS) {
-    const value = loadLocal(key, undefined);
-    if (value === undefined || value === null) continue;
-    fileStore.data[key] = value;
-    window.dataStore.set(key, value);
-  }
-}
-
-function load(key, fallback) {
-  if (!fileStore) return loadLocal(key, fallback);
-  return fileStore.data[key] ?? fallback;
-}
 // 読み込んだデータで入れ替えたあとは、読み込み直すまで何も保存しない
 // (閉じるときの保存 (pagehide) などで、入れ替えたデータを古いデータで上書きしないように)
 let dataReplaced = false;
 function save(key, value) {
   if (dataReplaced) return;
-  if (!fileStore) {
-    localStorage.setItem(key, JSON.stringify(value));
-    return;
-  }
-  fileStore.data[key] = value;
-  window.dataStore.set(key, value);
+  localStorage.setItem(key, JSON.stringify(value));
 }
 
 // 古い形式や壊れた値が保存されていても、parseSettings が既定値で補って範囲内に収める
 let settings = parseSettings(load('settings', {}));
-// 言語がまだ決まっていなければ (初回起動・以前の版から更新した直後)、Windows の言語から決めて保存する
+// 言語がまだ決まっていなければ (初回起動・以前の版から更新した直後)、端末・ブラウザーの言語から決めて保存する
 if (settings.language === null) {
   settings = { ...settings, language: detectLanguage(navigator.language) };
   save('settings', settings);
@@ -153,7 +127,7 @@ const t = (key, params) => translate(settings.language, key, params);
 let events = parseEvents(load('events', []));
 // ラウンド (schedule.js。コマのまとまり)。保存の名前は、前の版の「時間割」のまま
 let rounds = parseTimetable(load('timetable', []));
-// 外部カレンダーから取り込んだ予定 (calendar-feeds.js。読み取り専用で、ここには保存しない)。
+// 外部カレンダーから取り込んだ予定 (web-feeds.js。読み取り専用で、ここには保存しない)。
 // events は 1 回だけの予定の形 (カレンダーの予定と同じ関数で扱える)、allDay は終日の予定、feeds は各カレンダーの状態
 let external = { feeds: [], events: [], allDay: [], available: false };
 // 知らせ・次の予定・集中の記録・カレンダーの点に使う予定 (自分の予定 + 取り込んだ予定)
@@ -172,11 +146,10 @@ let view = 'timer'; // 'timer' | 'stopwatch'
 
 // 取り込んだ壁紙・BGM の一覧 ({ file: 保存名, name: 元のファイル名 })。取り込みの仕組みがない環境では空のまま
 const media = { wallpapers: [], bgm: [] };
-// 取り込みの仕組み: パソコン版は preload.cjs の window.media (保存フォルダーにコピーし、app-media: で読む)、
-// Android 版とブラウザーは web-media.js (IndexedDB にしまい、blob: で読む)。どちらも list・import・remove が使える
-const mediaStore = window.media ?? createWebMedia();
+// 取り込みの仕組み: web-media.js (IndexedDB にしまい、blob: で読む)。list・import・remove が使える
+const mediaStore = createWebMedia();
 // 取り込んだファイルを読む URL
-const mediaSrc = (kind, file) => (window.media ? mediaUrl(kind, file) : mediaStore?.url(kind, file) ?? '');
+const mediaSrc = (kind, file) => mediaStore?.url(kind, file) ?? '';
 const bgm = new BgmPlayer((storedName) => mediaSrc('bgm', storedName), { onEnded: playNextTrack });
 
 // --- BGM の再生 (bgm.js の決まりごと) ---
@@ -299,16 +272,14 @@ function timerNoticeText(finishedMode, nextMode) {
   };
 }
 
-// アプリではメインプロセスが出し、押されたらアプリを前に出す (最小化していれば元に戻す)。
-// Electron の外 (ブラウザーで開いたとき) は、ブラウザーの通知を出す。
+// Web 版は、ブラウザーの通知を出す。
 // スマホ版 (Capacitor) は、タイマーの終わりも予定の知らせも先に Android に預けてあるので (syncMobileNotices)、ここでは出さない
 function showNotification(title, body) {
-  if (window.notifier) window.notifier.show(title, body);
-  else if (!mobileNotifications && typeof Notification === 'function') new Notification(title, { body, silent: true });
+  if (!mobileNotifications && typeof Notification === 'function') new Notification(title, { body, silent: true });
 }
 
 // --- スマホ版 (Capacitor) の通知 ---
-// Capacitor のアプリの中だけ、Local Notifications (Android の通知) を使う。パソコン版・ブラウザーでは null
+// Capacitor のアプリの中だけ、Local Notifications (Android の通知) を使う。Web 版では null
 const mobileNotifications = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins?.LocalNotifications ?? null : null;
 // 通知の ID は毎回新しくする (出ている・出かけている通知を、次の予約で上書きしないように)。
 // Android の通知の ID は 32 ビットの整数なので、起動した時刻の秒から数える
@@ -357,7 +328,7 @@ function depositNotices(scheduled, wanted, now) {
   return [...change.keep, ...added.map(({ id, at, key }) => ({ id, at, key }))];
 }
 
-// 予定の知らせの文 (パソコン版で checkEvents が出すものと同じ。予定の始まりは、その時刻にタイマーが動いているか分からないので、時刻だけ)
+// 予定の知らせの文 (Web 版で checkEvents が出すものと同じ。予定の始まりは、その時刻にタイマーが動いているか分からないので、時刻だけ)
 function planNoticeText(item, kind) {
   const times = { start: item.start, end: item.end };
   if (kind === 'reminder') return { title: t('notifyReminderTitle', { n: settings.scheduleReminder, title: item.title }), body: t('notifyReminderBody', times) };
@@ -631,11 +602,9 @@ onControl(els.skip, () => {
 });
 
 document.addEventListener('keydown', (e) => {
+  // Esc は「1 つ戻る」(goBack。Android の「戻る」と同じ)
   if (e.key === 'Escape') {
-    const action = escapeAction({ settingsOpen: panelOpen(), popupOpen: openPopup !== null || expanded, fullScreen });
-    if (action === 'closeSettings') closePanel();
-    if (action === 'closePopup') closePlayerLayer();
-    if (action === 'exitFullScreen') window.windowControls.exitFullScreen();
+    goBack();
     return;
   }
   // Space で開始/停止 (設定・カレンダーを開いているときと、入力欄・選択欄・ボタンにいるときは除く)
@@ -695,7 +664,6 @@ function applyLanguage() {
     column.querySelector('.wheel')?.setAttribute('aria-label', t(column.dataset.labelKey));
   }
   els.language.value = settings.language;
-  renderFullScreen();
   if (appVersion) els.appVersion.textContent = t('version', { version: appVersion });
 }
 
@@ -801,36 +769,6 @@ function closePanel() {
   else closeSettings();
 }
 
-// --- 全画面表示 (F11 はメインプロセスが受け取り、切り替わったら onChange で知らせてくる) ---
-let fullScreen = false;
-
-function renderFullScreen() {
-  els.fullScreen.dataset.fullscreen = String(fullScreen);
-  const label = t(fullScreen ? 'exitFullScreen' : 'enterFullScreen');
-  els.fullScreen.setAttribute('aria-label', label);
-  els.fullScreen.title = label; // マウスを乗せたときに、キーでも切り替えられることを見せる
-}
-
-// クレジットの「GitHub」ボタン。開くページはメインプロセスが決めている (Electron の外ではボタンを出さない)
-if (window.appLinks) {
-  const button = $('open-repository');
-  button.hidden = false;
-  button.addEventListener('click', () => window.appLinks.openRepository());
-}
-
-// Electron の外 (ブラウザーで index.html を開いたとき) には windowControls がないので、ボタンを出さない
-if (window.windowControls) {
-  els.fullScreen.hidden = false;
-  els.fullScreen.addEventListener('click', () => window.windowControls.toggleFullScreen());
-  window.windowControls.onChange((value) => {
-    fullScreen = value;
-    renderFullScreen();
-  });
-  window.windowControls.isFullScreen().then((value) => {
-    fullScreen = value;
-    renderFullScreen();
-  });
-}
 els.closeSettings.addEventListener('click', closeSettings);
 for (const tab of tabs) {
   tab.addEventListener('click', () => selectTab(tab.dataset.tab));
@@ -1216,8 +1154,8 @@ async function shareMobileFile(text, name) {
 
 // データの書き出し・読み込み。読み込んだら、今のデータと入れ替えて画面を読み込み直す
 // (読み込み直すと、各項目を parseSettings・parseEvents などが確かめ直す)。
-// パソコン版は data.json (window.dataStore)、Android 版とブラウザーは localStorage (web-data.js) を使う
-const dataTools = window.dataStore ?? createWebData({ storage: localStorage, ...(isMobileApp && { share: shareMobileFile }) });
+// 保存先の localStorage を web-data.js が読み書きする。Android 版は、書き出したファイルを共有の画面で送る
+const dataTools = createWebData({ storage: localStorage, ...(isMobileApp && { share: shareMobileFile }) });
 const dataStatus = $('data-status');
 const showStatus = (key) => {
   dataStatus.textContent = t(key);
@@ -1312,8 +1250,8 @@ function renderPlayer() {
   renderMediaSession(canSeek ? { duration, position: current } : null);
 }
 
-// --- キーボードのメディアキー・Windows の再生操作 (Media Session) ---
-// 曲名と再生状態を Windows に知らせ、▶⏸・前へ・次へのキーを再生バーのボタンと同じ動きにする
+// --- OS の再生操作 (Media Session。Android のロック画面と曲の通知・キーボードのメディアキー) ---
+// 曲名と再生状態を OS に知らせ、▶⏸・前へ・次へのキーを再生バーのボタンと同じ動きにする
 let mediaTitle = null;
 function renderMediaSession(position) {
   syncLockScreenTrack();
@@ -1332,7 +1270,7 @@ function renderMediaSession(position) {
   }
 }
 
-// OS の曲の操作 (パソコン版のメディアキー・スマホ版のロック画面と曲の通知)。
+// OS の曲の操作 (キーボードのメディアキー・スマホ版のロック画面と曲の通知)。
 // 押せないとき (ノイズ・リピート「オフ」の最後の曲) は、ボタンと同じく何もしない
 const pressPlayerButton = (button) => () => {
   if (!player.root.hidden && !button.disabled) button.click();
@@ -1498,7 +1436,7 @@ function renderCover() {
       image.src = cover.url;
       image.hidden = false;
     }
-    // Windows・Android の再生の表示にも、ジャケットを渡す
+    // OS (Android のロック画面と曲の通知など) の再生の表示にも、ジャケットを渡す
     if ('mediaSession' in navigator && mediaTitle) {
       navigator.mediaSession.metadata = new MediaMetadata({ title: mediaTitle, artwork: [{ src: cover.url, type: cover.mime }] });
     }
@@ -3190,15 +3128,7 @@ async function loadMedia() {
   updateSettings(patch);
 }
 
-// --- 自動アップデートの案内 ---
-// window.updater は preload.cjs が用意する。ブラウザで直接開いたときなどは存在しないので、何もしない
-const UPDATE_VIEW = {
-  available: { text: (u) => t('updateAvailable', { version: u.version }), action: 'updateNow', later: true },
-  downloading: { text: (u) => t('downloading', { percent: u.percent }), action: null, later: false },
-  downloaded: { text: () => t('updateReady'), action: 'restartToUpdate', later: true },
-  error: { text: () => t('updateFailed'), action: 'retry', later: true },
-};
-
+// --- 更新の案内 (Android 版だけ。update-status.js) ---
 let updateState = INITIAL_UPDATE_STATE;
 
 function dispatchUpdate(event) {
@@ -3210,35 +3140,8 @@ function renderUpdate() {
   const visible = isBannerVisible(updateState);
   els.updateBanner.hidden = !visible;
   if (!visible) return;
-  const view = UPDATE_VIEW[updateState.phase];
-  els.updateText.textContent = view.text(updateState);
-  els.updateProgress.hidden = updateState.phase !== 'downloading';
-  els.updateProgress.value = updateState.percent;
-  els.updateAction.hidden = !view.action;
-  els.updateAction.textContent = view.action ? t(view.action) : '';
-  els.updateLater.hidden = !view.later;
-}
-
-if (window.updater) {
-  window.updater.onEvent(dispatchUpdate);
-  window.updater.getVersion().then((version) => {
-    appVersion = version;
-    els.appVersion.textContent = t('version', { version });
-    els.appVersion.hidden = false;
-  });
-
-  els.updateAction.addEventListener('click', () => {
-    if (updateState.phase === 'downloaded') {
-      // 再起動するとタイマーが止まるので、動いているときは確認する
-      if (state.running && !confirm(t('confirmRestart'))) return;
-      window.updater.install();
-      return;
-    }
-    dispatchUpdate({ type: 'download-start' });
-    // 失敗はメインプロセスからの error イベントでも届くが、念のためここでも受け取る
-    window.updater.download().catch((error) => dispatchUpdate({ type: 'error', message: String(error) }));
-  });
-  els.updateLater.addEventListener('click', () => dispatchUpdate({ type: 'dismiss' }));
+  els.updateText.textContent = t('updateAvailable', { version: updateState.version });
+  els.updateAction.textContent = t('updateNow');
 }
 
 // スマホ版 (Capacitor): 起動したときに GitHub の最新の Release を 1 回だけ見て、新しい版の APK があれば同じバナーで知らせる。
@@ -3259,7 +3162,7 @@ async function checkMobileUpdate() {
     mobileReleasePage = found.page;
     dispatchUpdate({ type: 'available', version: found.version });
   } catch {
-    // オフラインなどで確かめられなかったときは、知らせない (パソコン版と同じ)
+    // オフラインなどで確かめられなかったときは、知らせない
   }
 }
 
@@ -3271,14 +3174,14 @@ if (mobileApp) {
   });
   els.updateLater.addEventListener('click', () => dispatchUpdate({ type: 'dismiss' }));
   checkMobileUpdate();
-  // Android の「戻る」(画面端のスワイプ・戻るボタン): パソコン版の Esc と同じく、小窓 → 設定パネルの順に閉じる。
+  // Android の「戻る」(画面端のスワイプ・戻るボタン): Esc と同じく、開いているものを手前から 1 つずつ閉じる。
   // 閉じるものがなければ、アプリを終わらせずに裏に回す (タイマーの通知は予約したまま)
   mobileApp.addListener('backButton', () => {
     if (!goBack()) mobileApp.minimizeApp();
   });
 }
 
-// --- 外部カレンダー (Google カレンダーなどの iCal 形式の非公開 URL。calendar-feeds.js が取り込む。アプリのときだけ) ---
+// --- 外部カレンダー (Google カレンダーなどの iCal 形式の非公開 URL。web-feeds.js が取り込む。Android 版のときだけ) ---
 const feedsUi = {
   section: $('feeds-section'),
   list: $('feed-list'),
@@ -3292,8 +3195,8 @@ const feedsUi = {
 // 登録できる数。src/ical-feed.js の MAX_FEEDS と同じ (画面は ical.js を読み込めないので、数だけここに持つ)
 const MAX_FEEDS_UI = 5;
 
-// 外部カレンダー: パソコン版は calendar-feeds.js (メインプロセス)、Android 版は web-feeds.js。ブラウザーでは使わない
-const calendarFeeds = window.calendarFeeds ?? (isMobileApp ? createWebFeeds({ plugins: window.Capacitor.Plugins, storage: localStorage }) : null);
+// 外部カレンダー: Android 版は web-feeds.js。ブラウザーでは使わない (カレンダーのサーバーが、ほかのサイトからの読み取り (CORS) を許していないため)
+const calendarFeeds = isMobileApp ? createWebFeeds({ plugins: window.Capacitor.Plugins, storage: localStorage }) : null;
 
 // 取り込んだ回を、カレンダーの予定と同じ形 (1 回だけの予定) と、終日の予定に分ける。名前がなければ仮の名前
 function applyExternal({ feeds, events: list, available }) {

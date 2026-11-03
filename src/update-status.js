@@ -1,39 +1,20 @@
-// 自動アップデートの案内バナーの状態。メインプロセスからの通知と、ユーザーの操作を
-// イベントとして受け取り、次の状態を返す (画面にも Electron にも依存しない純粋関数)。
+// 更新の案内バナーの状態 (画面 (DOM) に依存しない純粋関数)。
+// Android 版が起動したときに GitHub の最新の Release を見て、新しい版の APK があれば知らせる (mobile-update.js)。
+// 見つかったことと、ユーザーの操作 (「更新する」「あとで」) をイベントとして受け取り、次の状態を返す。
 //
-// phase の移り変わり:
-//   idle → available → downloading → downloaded
-//                ↑            ↓
-//                └── error ←──┘   (error から「再試行」で downloading に戻る)
-//   available / downloaded / error は「あとで」で hidden になる
+// phase の移り変わり: idle → available → hidden (「更新する」「あとで」のどちらでも閉じる)
 
-export const INITIAL_UPDATE_STATE = Object.freeze({ phase: 'idle', version: null, percent: 0 });
-
-const VISIBLE_PHASES = new Set(['available', 'downloading', 'downloaded', 'error']);
+export const INITIAL_UPDATE_STATE = Object.freeze({ phase: 'idle', version: null });
 
 export function isBannerVisible(state) {
-  return VISIBLE_PHASES.has(state.phase);
+  return state.phase === 'available';
 }
 
 export function nextUpdateState(state, event) {
   switch (event.type) {
     case 'available':
       return { ...state, phase: 'available', version: event.version };
-    case 'download-start':
-      if (state.phase !== 'available' && state.phase !== 'error') return state;
-      return { ...state, phase: 'downloading', percent: 0 };
-    case 'progress':
-      if (state.phase !== 'downloading') return state;
-      return { ...state, percent: Math.min(100, Math.max(0, Math.floor(event.percent))) };
-    case 'downloaded':
-      return { ...state, phase: 'downloaded', version: event.version ?? state.version, percent: 100 };
-    case 'error':
-      // 更新の確認だけが失敗した場合 (オフラインなど) は、利用者に見せる必要がないので出さない
-      if (state.phase !== 'downloading') return state;
-      return { ...state, phase: 'error' };
     case 'dismiss':
-      // ダウンロード中に閉じると状況が分からなくなるので、閉じさせない
-      if (state.phase === 'downloading') return state;
       return { ...state, phase: 'hidden' };
     default:
       return state;

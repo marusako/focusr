@@ -1,47 +1,12 @@
 {
   "name": "focusr",
   "version": "2.9.1",
-  "description": "Focusr: Electron で作る、作業と休憩を区切るタイマー",
+  "description": "Focusr: 作業と休憩を区切るタイマー (Android 版・Web 版)",
   "license": "MIT",
   "type": "module",
-  "main": "main.js",
   "private": true,
   "scripts": {
-    "start": "electron .",
-    "test": "node --test \"test/**/*.test.js\"",
-    "dist": "electron-builder --win --publish never"
-  },
-  "build": {
-    "appId": "io.github.marusako.pomodoro-timer",
-    "productName": "Focusr",
-    "directories": {
-      "output": "dist/${version}"
-    },
-    "files": [
-      "main.js",
-      "data-store.js",
-      "calendar-feeds.js",
-      "legacy-data.js",
-      "media-store.js",
-      "preload.cjs",
-      "src/**/*"
-    ],
-    "win": {
-      "target": [
-        "nsis"
-      ]
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "artifactName": "${name}-Setup-${version}.${ext}"
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "marusako",
-      "repo": "kugiri-timer",
-      "releaseType": "release"
-    }
+    "test": "node --test \"test/**/*.test.js\""
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.3",
@@ -51,11 +16,6 @@
     "@capacitor/filesystem": "^8.1.4",
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.3",
-    "electron": "^44.5.1",
-    "electron-builder": "^26.15.3",
     "ical.js": "^2.2.1"
-  },
-  "dependencies": {
-    "electron-updater": "^6.8.9"
   }
 }

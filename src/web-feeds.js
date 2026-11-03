@@ -1,8 +1,8 @@
-// Android 版の外部カレンダー。パソコン版の window.calendarFeeds (preload.cjs → calendar-feeds.js) と同じ形の操作を用意する:
+// Android 版の外部カレンダー。次の操作を用意する:
 //   list()・add(input)・remove(id)・refresh()・onChange(callback)
-// 一覧・追加・外す・読み直しの決まりは feed-store.js (パソコン版と共通)。ここでは、保存・暗号化・通信のしかたを渡す:
+// 一覧・追加・外す・読み直しの決まりは feed-store.js。ここでは、保存・暗号化・通信のしかたを渡す:
 // - URL は、自前の部品 UrlVault (mobile/UrlVault.java) が Android の Keystore の鍵で暗号化する。
-//   鍵は端末の外に出せないので、ほかの端末では暗号を解けない (パソコン版の safeStorage と同じ考え方)
+//   鍵は端末の外に出せないので、ほかの端末では暗号を解けない
 // - 一覧は localStorage の kugiriFeeds にしまう。書き出しの項目 (data-file.js の DATA_KEYS) ではないので、書き出しには入らない
 // - 通信は Capacitor の CapacitorHttp (Android の側で通信する)。画面の fetch では、カレンダーのサーバーが
 //   ほかのサイトからの読み取りを許していない (CORS) ため読めない。画面の CSP もそのまま (外との通信は api.github.com だけ)
