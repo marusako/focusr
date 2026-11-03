@@ -4,7 +4,6 @@ name: Android build
 # 開発に使うパソコンには Android Studio を入れられないので、GitHub のサーバー (Android SDK が最初から入っている) でビルドする。
 # android/ フォルダーは git に入れず、ここで毎回作り直す。署名には、Secrets に入れた固定の鍵を使う (なければ失敗する)。
 # release-tag を渡したときは、その Release に focusr-<版>.apk として加える (スマホ版が更新を知らせるのに使う)。
-# 名前を変える前の版 (2.9.0 まで) のアプリは kugiri-timer-<版>.apk しか更新として見ないので、しばらくは同じものをその名前でも加える
 on:
   workflow_call:
     inputs:
@@ -107,5 +106,4 @@ jobs:
         run: |
           # タグと版がずれていたら加えない (release.yml でも確かめている)
           [ "v$VERSION" = "$TAG" ] || { echo "::error::タグ $TAG と版 $VERSION が一致しない"; exit 1; }
-          cp "focusr-$VERSION.apk" "kugiri-timer-$VERSION.apk"
-          gh release upload "$TAG" "focusr-$VERSION.apk" "kugiri-timer-$VERSION.apk" --clobber
+          gh release upload "$TAG" "focusr-$VERSION.apk" --clobber

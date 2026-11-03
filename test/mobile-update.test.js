@@ -12,12 +12,13 @@ test('版の比べ方: 数字ごとに比べる (文字の並びでは比べな�
   assert.equal(isNewerVersion('abc', '2.9.0'), false, '形がおかしければ新しくない');
 });
 
-test('Android の更新の番号 (versionCode): 新しい版ほど大きい整数にする。版の番号を付け直す前の最後の番号 (21600) より大きい', () => {
-  assert.equal(versionCode('2.9.0'), 120900);
-  assert.equal(versionCode('2.10.0'), 121000);
-  assert.equal(versionCode('10.0.1'), 200001);
-  assert.ok(versionCode('2.7.0') > 21600, '付け直す前に入れた 2.16.0 (21600) の上から入れられる');
-  assert.ok(versionCode('2.10.0') > versionCode('2.9.99'));
+test('Android の更新の番号 (versionCode): 新しい版ほど大きい整数にする。版の番号を付け直す前の最後の番号より大きい', () => {
+  assert.equal(versionCode('1.0.0'), 210000);
+  assert.equal(versionCode('1.10.0'), 211000);
+  assert.equal(versionCode('10.0.1'), 300001);
+  assert.ok(versionCode('1.0.0') > 120901, '2 回目の付け直しの前に入れた 2.9.1 (120901) の上から入れられる');
+  assert.ok(versionCode('0.0.1') > 21600, '1 回目の付け直しの前に入れた 2.16.0 (21600) の上から入れられる');
+  assert.ok(versionCode('1.10.0') > versionCode('1.9.99'));
   assert.throws(() => versionCode('2.100.0'), '小さい桁が 100 以上だと順番が崩れるので止める');
   assert.throws(() => versionCode('2.9'));
 });

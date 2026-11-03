@@ -6,7 +6,7 @@ Android 向けの作業タイマーです。作業と休憩を区切ってくり
 
 Release の `focusr-<版>.apk` から入れられます（下の「Android 版」）。ブラウザーで使える Web 版も準備中です。
 
-Windows 版（Electron）は、2026-11 に配信をやめました（2.9.1 が最後の版です）。データは、Windows 版の「書き出し」で作ったファイルを、Android 版の「読み込み」で引き継げます。
+Windows 版（Electron）は、2026-11 に配信をやめました。データは、Windows 版の「書き出し」で作ったファイルを、Android 版の「読み込み」で引き継げます。
 
 2026 年 10 月に「Pomodoro Timer」から名前を変えました（「Pomodoro」は商標の持ち主のガイドラインで、許可なくアプリ名に使うことが認められていないため）。
 
@@ -132,7 +132,7 @@ GitHub に push すると、GitHub Actions（`.github/workflows/test.yml`）で�
 2. タグと `package.json` の `version` が一致しているか確認する（ずれていたら止める）
 3. `release-notes/<タグ>.md` から Release のタイトルと説明文を取り出す（ファイルがない・空なら止める）
 4. GitHub Release を作る（タイトルと説明文が入る）
-5. Android 版の APK を作り、その Release に `focusr-<版>.apk` として加える（`.github/workflows/android-build.yml`。2.9.0 までのアプリが更新に気づけるよう、しばらくは同じものを `kugiri-timer-<版>.apk` としても加える）
+5. Android 版の APK を作り、その Release に `focusr-<版>.apk` として加える（`.github/workflows/android-build.yml`）
 
 インストール済みの Android 版は、起動時に最新の Release を見て、新しい版の APK があれば更新を知らせます。
 
@@ -166,7 +166,7 @@ node scripts/release-notes.mjs v1.2.0 release-body.md
 - **ビルド**：main に push すると（画面や部品が変わったとき）、`.github/workflows/android.yml` が APK を作り、Actions の成果物（artifact）として置きます。手で動かすこともできます（Actions の画面の「Run workflow」）。リリースのときは、Release にも APK を加えます
 - **`android/` フォルダー**：git には入れず、ビルドのたびに作り直します（`npx cap add android`）
 - **署名**：GitHub の Secrets（`ANDROID_KEYSTORE_BASE64`・`ANDROID_KEYSTORE_PASSWORD`）に入れた固定の鍵で署名します。鍵が同じなので、新しい版を上書きでインストールでき、設定も引き継がれます。鍵をなくすと上書きの更新ができなくなるので、控えは開発者が保管します
-- **版の番号**：versionName は `package.json` の `version`、versionCode は版から作ります（2.7.3 → 120703。版の番号を付け直したときに 100000 を足した。`src/mobile-update.js`）
+- **版の番号**：versionName は `package.json` の `version`、versionCode は版から作ります（1.2.3 → 210203。版の番号を付け直したときに、前に入れたアプリの上から入れられるよう土台の数を足している。`src/mobile-update.js`）
 - **通知**：タイマーが動き出したら、終わる時刻に Android の通知を予約します（`src/mobile-notice.js`）。正確な時刻に出すために、`USE_EXACT_ALARM`（Android 12 は `SCHEDULE_EXACT_ALARM`）の権限を付けています。最近使ったアプリの一覧からアプリを閉じると、端末によっては予約した通知も消えます
 - **更新**：起動したときに GitHub の最新の Release を見て、新しい版の APK があれば知らせます。「更新する」を押すとブラウザーで Release のページを開くので、`focusr-<版>.apk` を押してダウンロードし、ダウンロードしたファイルを押して「インストール」を押します（Google Play 以外から入れたアプリは、Android の決まりで自動では入れ替えられません）
 - **曲・壁紙の取り込み**：Android のファイル選択の画面で選び、アプリの中（IndexedDB）にしまいます（`src/web-media.js`）。アプリを更新しても残りますが、アンインストールすると消えます
@@ -238,6 +238,7 @@ mobile/res/        Android 版のアイコン
 - **保存先**：設定・予定・時間割・集中の記録・xp は `localStorage` に項目ごとの JSON で、取り込んだ壁紙・BGM は IndexedDB に保存します。
 - **外部カレンダー**：Google の API とログイン（OAuth）は使わず、カレンダーの「iCal 形式の非公開 URL」から .ics を読みます。そのため、API の利用規約・開発者登録・審査が要りません。URL を知っている人は誰でも予定を読めるので、URL は Android の Keystore の鍵で暗号化して保存します。通信は Android 側（CapacitorHttp）で行い、画面の Content Security Policy（外との通信の禁止）はそのままです。.ics の読み取りには [ical.js](https://github.com/kewisch/ical.js)（MPL-2.0）を手を加えずに使っています（`src/vendor/` に写し、ライセンスの文章も同じ場所に置いています）。
 - **「Focusr」への名前の変更**：画面・Android に出す名前を「Focusr」に変え（2026-10-12）、そのあと中の名前（`package.json` の `name`、Release のファイル名 `focusr-<版>.apk`、書き出すファイルの `app` と名前、同梱したフォントの名前、Android のアイコンの部品の名前）も「Focusr」にしました（2026-10-15）。以前の名前で書き出したファイルも読み込めます。次のものは、変えると設定や記録が引き継げない・上から入れて更新できなくなるので、以前の名前のまま残しています：Android 版の保存場所の名前（`kugiri-media`・`kugiriFeeds`・鍵の名前 `kugiri-feed-url`）、アプリの識別子（`io.github.marusako.kugiritimer`）、署名の鍵の名前。GitHub のリポジトリ名は、名前を変えたあとの版が行き渡ってから `focusr` に変える予定です（更新のお知らせは、どちらの名前のリポジトリも受け付けます）。
+- **版の番号の付け直し（2026-11-03）**：Release を 2 つだけ残して付け直しました（最初のリリース 1.0.0 → `v0.0.0`、Android 版の試作版 2.0.0 → `v1.0.0`）。ほかの Release とタグ（1.1.0〜2.9.1）は消しました。2.9.x を入れた Android 版は、新しい 1.x を「新しい版」と判断しないので更新を知らせません。次の版は Release のページから手で入れてください（versionCode の土台を上げたので、上から入れられ、データも残ります）。
 - **音の生成**：Alarm・SE・ノイズは Web Audio API でその場で作るため、音声ファイルを同梱していません。アラームと SE の音は「楽譜のデータ」（`src/alarms.js`・`src/se-sounds.js`）と「鳴らす処理」（`src/sound.js`）に分けているので、音の長さや重なったときの大きさを、音を鳴らさずにテストできます。
 - **画面サイズに合わせた拡大**：メイン画面の大きさは、CSS の変数 `--u`（標準のウィンドウでの 1px が、今の画面で何 px になるか）を掛けて決めています。`--u` は「幅 ÷ 410」と「高さ ÷ 600」の小さいほうなので、縦長でも横長でも画面からはみ出しません。基準の幅 410 は、いちばん幅を取るボタンの並び（韓国語の「일시정지」表示時）が、幅 320px（小さめのスマホ）まで 1 行に収まるように決めています。JavaScript を使わず CSS だけで計算するため、ウィンドウの大きさを変えるとすぐに反映されます。
 

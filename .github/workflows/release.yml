@@ -55,7 +55,7 @@ jobs:
           RELEASE_TITLE: ${{ steps.notes.outputs.title }}
           RELEASE_BODY_FILE: ${{ steps.notes.outputs.body_file }}
 
-  # Android 版の APK を作り、上で作った下書きの Release に focusr-<版>.apk として加える (以前の名前でも加える。android-build.yml)
+  # Android 版の APK を作り、上で作った下書きの Release に focusr-<版>.apk として加える (android-build.yml)
   android:
     needs: release
     uses: ./.github/workflows/android-build.yml

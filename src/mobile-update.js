@@ -25,10 +25,11 @@ export function isNewerVersion(a, b) {
   return false;
 }
 
-// Android の更新の番号 (versionCode)。新しい版ほど大きくなるように、2.7.3 → 120703 にする。
-// 版の番号を付け直したとき (2026-10-12。2.16.0 → 2.6.0) に、付け直す前に入れたアプリ (2.16.0 = 21600) の上から入れられるよう、
-// 100000 を足している (Android は、番号が小さいアプリを上から入れられない)。小さい 2 つの桁が 100 以上だと順番が崩れるので止める
-const VERSION_CODE_BASE = 100000;
+// Android の更新の番号 (versionCode)。新しい版ほど大きくなるように、1.2.3 → 210203 にする。
+// Android は、番号が小さいアプリを上から入れられない。版の番号を付け直したときに、付け直す前に入れたアプリの上から入れられるよう、
+// 土台の数を足している: 2026-10-12 (2.16.0 → 2.6.0) に 100000、2026-11-03 (2.9.1 → 1.x。2.9.1 = 120901) に 200000 にした。
+// 小さい 2 つの桁が 100 以上だと順番が崩れるので止める
+const VERSION_CODE_BASE = 200000;
 export function versionCode(version) {
   const parts = parseVersion(version);
   if (!parts || parts[1] >= 100 || parts[2] >= 100) throw new Error(`versionCode にできない版: ${version}`);
