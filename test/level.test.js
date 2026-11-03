@@ -84,10 +84,9 @@ test('作業の時間を足せる。元の値は書き換えない', () => {
   assert.deepEqual(addXpMs(next, 1000), { ms: MAX_STEP_MS + 1000 });
 });
 
-test('1 回に足せるのは MAX_STEP_MS まで', () => {
-  assert.deepEqual(addXpMs(createXp(), MAX_STEP_MS * 10), { ms: MAX_STEP_MS });
-  assert.deepEqual(addXpMs({ ms: 1000 }, MAX_STEP_MS + 1), { ms: 1000 + MAX_STEP_MS });
-  assert.deepEqual(addXpMs(createXp(), MAX_STEP_MS), { ms: MAX_STEP_MS });
+test('長い時間もそのまま足す (画面を消していた間の作業の分。上限は記録と同じく focusGainMs で決める)', () => {
+  assert.deepEqual(addXpMs(createXp(), 20 * 60 * 1000), { ms: 20 * 60 * 1000 });
+  assert.deepEqual(addXpMs({ ms: 1000 }, MAX_STEP_MS + 1), { ms: 1000 + MAX_STEP_MS + 1 });
 });
 
 test('0 以下・数値でない時間は何もしない (元の値をそのまま返す)', () => {

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  KEEP_MONTHS, MAX_STEP_MS, TOTAL_ID, ongoingItems, focusStepMs, addFocusTime, addFocusCount, focusOf, dayFocus, forgetMissing, oldestKeptDate, parseFocusLog, focusMinutes,
+  KEEP_MONTHS, MAX_STEP_MS, TOTAL_ID, ongoingItems, focusStepMs, focusGainMs, addFocusTime, addFocusCount, focusOf, dayFocus, forgetMissing, oldestKeptDate, parseFocusLog, focusMinutes,
 } from '../src/focus-log.js';
 
 // テストの時刻はローカル時刻で作る。2026-10-05 は月曜日
@@ -29,15 +29,30 @@ test('作業として数えた時間: 作業中でタイマーが動いている
   assert.equal(focusStepMs(running('work', 10000), 1250, 1000), 0, '時計が戻っても負にしない');
 });
 
-test('時間と回数を足す。1 回に足す時間には上限がある (スリープ明けなどでまとめて足さない)', () => {
+test('時間と回数を足す。画面を消していた間の分など、長い時間もそのまま足す (上限は focusGainMs で決める)', () => {
   let log = addFocusTime({}, '2026-10-05', ['ev-1', 'tt-1'], 250);
-  log = addFocusTime(log, '2026-10-05', ['ev-1'], 60 * 60 * 1000);
-  assert.deepEqual(focusOf(log, '2026-10-05', 'ev-1'), { ms: 250 + MAX_STEP_MS, count: 0 });
+  log = addFocusTime(log, '2026-10-05', ['ev-1'], 20 * 60 * 1000);
+  assert.deepEqual(focusOf(log, '2026-10-05', 'ev-1'), { ms: 250 + 20 * 60 * 1000, count: 0 });
   log = addFocusCount(log, '2026-10-05', ['ev-1', 'tt-1']);
   assert.deepEqual(focusOf(log, '2026-10-05', 'tt-1'), { ms: 250, count: 1 });
   assert.equal(focusOf(log, '2026-10-06', 'ev-1'), null);
   assert.equal(addFocusTime(log, '2026-10-05', [], 250), log, '予定がなければ何も変えない');
   assert.equal(addFocusTime(log, '2026-10-05', ['ev-1'], -5), log);
+});
+
+// スマホで画面を消すと、画面の更新が止まる。点けたときに、消していた間の作業の時間をまとめて数える。
+// タイマーは終わりの時刻まで、ラウンドはコマの時間までしか数えないので、全部数える。
+// ストップウォッチには終わりがない (止め忘れると何時間も足される) ので、1 回に MAX_STEP_MS までにする
+test('1 回に数える時間: タイマーとラウンドは全部、ストップウォッチは MAX_STEP_MS まで。いちばん長いものだけ (重ねて数えない)', () => {
+  const minutes20 = 20 * 60 * 1000;
+  assert.equal(focusGainMs({ timer: minutes20, round: 0, stopwatch: 0 }), minutes20, '画面を消していた 20 分のタイマーの作業');
+  assert.equal(focusGainMs({ timer: 0, round: minutes20, stopwatch: 0 }), minutes20, 'ラウンドのコマ');
+  assert.equal(focusGainMs({ timer: 0, round: 0, stopwatch: minutes20 }), MAX_STEP_MS, 'ストップウォッチは上限まで');
+  assert.equal(focusGainMs({ timer: 1000, round: 0, stopwatch: 1500 }), 1500, '上限より短いストップウォッチはそのまま');
+  assert.equal(focusGainMs({ timer: 3000, round: 5000, stopwatch: minutes20 }), 5000, '重なっていたら、いちばん長いものだけ');
+  assert.equal(focusGainMs({ timer: 0, round: 0, stopwatch: 0 }), 0);
+  assert.equal(focusGainMs({ timer: -5, round: NaN, stopwatch: -1 }), 0, '負・数値でないものは 0 として扱う');
+  assert.equal(focusGainMs({}), 0, 'なければ 0');
 });
 
 test('その日の合計 (ids を渡すと、その予定だけ)', () => {

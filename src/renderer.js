@@ -17,7 +17,7 @@ import { timerSegments, idleTimer } from './lock-screen.js';
 import { blockWindows, appBlockState } from './app-block.js';
 import { webNoticeState } from './web-notice.js';
 import { apkUpdate, isDevAppId } from './mobile-update.js';
-import { TOTAL_ID, ongoingItems, focusStepMs, addFocusTime, addFocusCount, focusOf, dayFocus, forgetMissing, parseFocusLog, focusMinutes } from './focus-log.js';
+import { TOTAL_ID, ongoingItems, focusStepMs, focusGainMs, addFocusTime, addFocusCount, focusOf, dayFocus, forgetMissing, parseFocusLog, focusMinutes } from './focus-log.js';
 import { INITIAL_UPDATE_STATE, nextUpdateState, isBannerVisible, updateBannerView } from './update-status.js';
 import { createWheelPicker } from './wheel-picker.js';
 import { WALLPAPER_PRESETS } from './wallpapers.js';
@@ -522,8 +522,13 @@ function renderLevel() {
 // タイマーの状態を変える直前 (スタート・一時停止・スキップなど) にも呼ぶ。
 // そうすると、スタートを押す前の時間は数えず、一時停止・スキップの直前までの時間も漏れない
 function recordFocusTime(now) {
-  // 通常のタイマーの作業・ラウンドの作業 (コマ)・ストップウォッチのうち最も長いもの (重なって動いていても、同じ時間を何回も数えない)
-  const ms = Math.max(focusStepMs(state, lastFocusAt, now), roundFocusMs(rounds, lastFocusAt, now), stopwatchFocusMs(stopwatch, lastFocusAt, now));
+  // 通常のタイマーの作業・ラウンドの作業 (コマ)・ストップウォッチのうち最も長いもの (重なって動いていても、同じ時間を何回も数えない)。
+  // スマホで画面を消していた間の分も、点けたときにここでまとめて数える
+  const ms = focusGainMs({
+    timer: focusStepMs(state, lastFocusAt, now),
+    round: roundFocusMs(rounds, lastFocusAt, now),
+    stopwatch: stopwatchFocusMs(stopwatch, lastFocusAt, now),
+  });
   if (ms > 0) {
     // その日の合計 (予定がなくても足す) と、今やっている予定
     focusLog = addFocusTime(focusLog, toDateKey(new Date(now)), [TOTAL_ID, ...ongoingItems(rounds, planEvents(), now)], ms);

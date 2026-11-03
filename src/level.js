@@ -1,7 +1,5 @@
 // レベル制度。作業の時間 (1 分 = 1xp) からレベルを決める。画面 (DOM) に依存しない純粋な関数だけを置く。
 // 形: { ms: 累計の作業時間 (ミリ秒) }。1 分に満たない端数を捨てずに持ち越すため、xp ではなくミリ秒で持つ
-import { MAX_STEP_MS } from './focus-log.js';
-
 export const FIRST_LEVEL_XP = 100; // Lv0 → Lv1 に要る xp
 export const LEVEL_STEP_XP = 50; // 1 つ上がるごとに、次に要る xp が増える量
 export const MS_PER_XP = 60000;
@@ -10,10 +8,11 @@ export function createXp() {
   return { ms: 0 };
 }
 
-// 作業の時間を足した新しい値を返す (元は書き換えない)。1 回に足せるのは MAX_STEP_MS まで。0 以下・数値でないときは元の値のまま
+// 作業の時間を足した新しい値を返す (元は書き換えない)。どれだけ足すかは focusGainMs (focus-log.js) で決める。
+// 0 以下・数値でないときは元の値のまま
 export function addXpMs(xp, ms) {
-  if (typeof ms !== 'number' || !(ms > 0)) return xp;
-  return { ms: xp.ms + Math.min(ms, MAX_STEP_MS) };
+  if (typeof ms !== 'number' || !(ms > 0) || !Number.isFinite(ms)) return xp;
+  return { ms: xp.ms + ms };
 }
 
 // 累計の xp (1 分に満たない端数は切り捨て)

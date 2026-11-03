@@ -9,7 +9,8 @@ import { parseDateKey, toDateKey } from './calendar.js';
 import { dayPlan } from './schedule.js';
 
 export const KEEP_MONTHS = 3;
-// 1 回に足す時間の上限。スリープ明けなどで、前に数えてから長く空いたときに、まとめて足さないようにする
+// ストップウォッチで 1 回に数える時間の上限。ストップウォッチには終わりがないので、止め忘れやスリープ明けに、
+// 前に数えてから長く空いた分をまとめて足さないようにする (タイマーとラウンドは終わりの時刻があるので、上限をかけない)
 export const MAX_STEP_MS = 2000;
 
 // その日の合計の ID。予定の ID (ev-1・tt-1・外部カレンダーの ex-xxxx など) とは重ならない
@@ -30,6 +31,14 @@ export function focusStepMs(state, lastAt, now) {
   return Math.max(0, Math.min(now, state.endAt) - lastAt);
 }
 
+// 1 回に数える作業の時間。タイマー・ラウンド・ストップウォッチのうち、いちばん長いもの (重なって動いていても、
+// 同じ時間を何回も数えない)。スマホで画面を消している間は画面の更新が止まり、点けたときにまとめて数えるので、
+// タイマーとラウンドは全部数え、ストップウォッチだけ MAX_STEP_MS までにする。負・数値でないものは 0
+export function focusGainMs({ timer, round, stopwatch }) {
+  const ms = (value) => (Number.isFinite(value) && value > 0 ? value : 0);
+  return Math.max(ms(timer), ms(round), Math.min(ms(stopwatch), MAX_STEP_MS));
+}
+
 function addTo(log, dateKey, ids, ms, count) {
   if (ids.length === 0 || (ms <= 0 && count <= 0)) return log;
   const day = { ...log[dateKey] };
@@ -40,9 +49,9 @@ function addTo(log, dateKey, ids, ms, count) {
   return { ...log, [dateKey]: day };
 }
 
-// 作業を数えた時間を足す (MAX_STEP_MS より長い分は足さない)
+// 作業を数えた時間を足す (どれだけ数えるかは focusGainMs で決める)
 export function addFocusTime(log, dateKey, ids, ms) {
-  return addTo(log, dateKey, ids, Math.min(ms, MAX_STEP_MS), 0);
+  return addTo(log, dateKey, ids, ms, 0);
 }
 
 // 作業を最後まで終えた回数を 1 増やす

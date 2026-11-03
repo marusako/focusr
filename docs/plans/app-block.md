@@ -86,7 +86,7 @@
 
 ### 決めたこと
 - 止める対象は、ホーム画面にアイコンがあるアプリ（ランチャーのアプリ）だけ。キーボード・通知の画面・権限の確認・インストールの画面など、アイコンのない Android の部品は止めない
-- いつも止めないもの：Focusr 自身、ホームアプリ（`CATEGORY_HOME` に応えるアプリすべて）、既定の電話アプリ（緊急の電話を止めないため。`TelecomManager.getDefaultDialerPackage()`）
+- いつも止めないもの：Focusr 自身、ホームアプリ（`CATEGORY_HOME` に応えるアプリすべて）、既定の電話アプリ（緊急の電話を止めないため。`TelecomManager.getDefaultDialerPackage()`）、緊急情報のアプリ（2026-11-03 に追加。合図 `android.telephony.action.EMERGENCY_ASSISTANCE` を受け取るアプリすべてと、名前で足す `com.android.emergency`・`com.google.android.apps.safetyhub`。合図は公開の定数ではなく、Android 標準の「緊急情報」が受け取るもの）
 - 何も選ばなければ、いつも止めないもの以外のアイコンのあるアプリを全部止める
 
 ### 外から見える形（上の記述から変えるところ）
@@ -95,7 +95,7 @@
   - `appBlockState` から `'noApps'` をなくす。権限がそろっていれば、選んだ数によらず `'ready'`
 - 設定：`appBlockApps` をやめ、`appBlockAllowApps`（既定 `[]`、`normalizePackageList` で整理）にする。古い `appBlockApps` は読まない
 - Android の部品
-  - `listApps()` → `{ apps: [{ packageName, label, always }] }`。`always` は、いつも止めないもの（ホームアプリ・既定の電話アプリ）なら true。Focusr 自身は今までどおり一覧に出さない
+  - `listApps()` → `{ apps: [{ packageName, label, always }] }`。`always` は、いつも止めないもの（ホームアプリ・既定の電話アプリ・緊急情報のアプリ）なら true。Focusr 自身は今までどおり一覧に出さない
   - `setPlan({ windows, allow, texts })`：`apps` のかわりに `allow`（制限しないアプリ）を渡す
   - サービスは計画を読むたびに、止めるアプリ ＝ ランチャーのアプリ − `allow` − いつも止めないもの − Focusr 自身、を作る（アプリを入れたり消したりしても、次に読むときに合う）
 - 設定の欄：ボタンを「制限しないアプリを選ぶ（N 個）」にする。一覧で、`always` のアプリはチェックを入れたまま変えられない形で出し、「いつも使えます」と添える。欄の説明に「作業中は、選んだアプリ以外を開けなくします」と書く
