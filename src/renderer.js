@@ -1220,8 +1220,8 @@ webNotice.allow.addEventListener('click', async () => {
 });
 
 // --- 作業中のアプリの制限 (スマホ版だけ。mobile/AppBlock.java) ---
-// 作業の時間帯 (app-block.js の blockWindows) と止めるアプリを Android に渡すと、Android がフォアグラウンドサービスで
-// 選んだアプリを開けなくする。許可の状態は、起動したとき・アプリに戻ってきたとき・設定を開いたときに取り直す
+// 作業の時間帯 (app-block.js の blockWindows) と制限しないアプリを Android に渡すと、Android がフォアグラウンドサービスで
+// 選んだアプリ以外を開けなくする。許可の状態は、起動したとき・アプリに戻ってきたとき・設定を開いたときに取り直す
 const appBlock = isMobileApp ? window.Capacitor.Plugins?.AppBlock ?? null : null;
 const appBlockUi = {
   section: $('app-block-section'),
@@ -1242,7 +1242,6 @@ function currentAppBlockState() {
     enabled: settings.appBlockEnabled,
     usageAccess: appPermission.usageAccess,
     overlay: appPermission.overlay,
-    apps: settings.appBlockApps,
   });
 }
 
@@ -1254,20 +1253,20 @@ function renderAppBlock() {
   appBlockUi.permission.hidden = state !== 'needsPermission';
   appBlockUi.usage.hidden = state !== 'needsPermission' || appPermission.usageAccess;
   appBlockUi.overlay.hidden = state !== 'needsPermission' || appPermission.overlay;
-  const canPick = state === 'noApps' || state === 'ready';
+  const canPick = state === 'ready';
   appBlockUi.pick.hidden = !canPick;
-  appBlockUi.pick.textContent = t('appBlockPick', { n: settings.appBlockApps.length });
+  appBlockUi.pick.textContent = t('appBlockPick', { n: settings.appBlockAllowApps.length });
   if (!canPick) setAppListOpen(false);
 }
 
-// 止めるアプリの一覧 (チェックボックス。名前の順) を開く・閉じる。開くたびに、入っているアプリを読み直す
+// 制限しないアプリの一覧 (チェックボックス。名前の順) を開く・閉じる。開くたびに、入っているアプリを読み直す
 function setAppListOpen(open) {
   appBlockUi.list.hidden = !open;
   appBlockUi.pick.setAttribute('aria-expanded', String(open));
   if (!open) return;
   appBlockUi.list.textContent = '';
   appBlock.listApps().then(({ apps }) => {
-    // 読んでいる間に閉じていたら描かない。止めると決めたまま消えたアプリ (入れ直し中など) は、選びなおすまで残す
+    // 読んでいる間に閉じていたら描かない。制限しないと決めたまま消えたアプリ (入れ直し中など) は、選びなおすまで残す
     if (appBlockUi.list.hidden) return;
     if (apps.length === 0) {
       appBlockUi.list.textContent = t('appBlockListEmpty');
@@ -1279,9 +1278,11 @@ function setAppListOpen(open) {
       const box = document.createElement('input');
       box.type = 'checkbox';
       box.value = app.packageName;
-      box.checked = settings.appBlockApps.includes(app.packageName);
+      // いつも使えるアプリ (ホーム・電話) は、チェックを入れたまま変えられない
+      box.checked = app.always || settings.appBlockAllowApps.includes(app.packageName);
+      box.disabled = Boolean(app.always);
       const name = document.createElement('span');
-      name.textContent = app.label;
+      name.textContent = app.always ? `${app.label} (${t('appBlockAlways')})` : app.label;
       label.append(box, name);
       appBlockUi.list.append(label);
     }
@@ -1314,19 +1315,19 @@ function syncAppBlock(now) {
   if (!appBlock || !appPermissionKnown) return;
   const ready = currentAppBlockState() === 'ready';
   const windows = ready ? blockWindows(timerSegments(state, settings, rounds, now, TIMER_NOTICE_COUNT), now) : [];
-  const apps = ready ? settings.appBlockApps : [];
+  const allow = ready ? settings.appBlockAllowApps : [];
   const texts = {
     title: t('appBlockScreenTitle'),
     home: t('appBlockScreenHome'),
     notice: t('appBlockNotice'),
     channel: t('appBlockTitle'),
   };
-  const key = JSON.stringify([windows.map((w) => [w.from > now ? w.from : 0, w.to]), apps, texts]);
+  const key = JSON.stringify([windows.map((w) => [w.from > now ? w.from : 0, w.to]), allow, texts]);
   if (key === appBlockKey) return;
   appBlockKey = key;
   // サービスが動いていれば計画を読み直させ、動いていなければ始める。始められなかったとき (裏にあるときなど) だけ、
   // 次に変わったときにもう一度試す (動いている間は、裏にいても送り直しは失敗しない)
-  appBlock.setPlan({ windows, apps, texts }).catch(() => { appBlockKey = null; });
+  appBlock.setPlan({ windows, allow, texts }).catch(() => { appBlockKey = null; });
 }
 
 if (appBlock) {
@@ -1336,8 +1337,8 @@ if (appBlock) {
   appBlockUi.pick.addEventListener('click', () => setAppListOpen(appBlockUi.list.hidden));
   // チェックを変えるたびに保存する (閉じるのを待たない)
   appBlockUi.list.addEventListener('change', () => {
-    const checked = [...appBlockUi.list.querySelectorAll('input:checked')].map((box) => box.value);
-    updateSettings({ appBlockApps: checked });
+    const checked = [...appBlockUi.list.querySelectorAll('input:checked:not(:disabled)')].map((box) => box.value);
+    updateSettings({ appBlockAllowApps: checked });
   });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') refreshAppBlockStatus();

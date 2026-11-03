@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
@@ -34,7 +35,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 // 作業の時間帯の間だけ動く、フォアグラウンドサービス。画面 (src/renderer.js) が AppBlock.setPlan で渡した計画
-// (作業の時間帯・止めるアプリ・文) を保存から読み、1 秒ごとに、今が時間帯の中か、前に出ているアプリが止めるアプリかを確かめる。
+// (作業の時間帯・制限しないアプリ・文) を保存から読み、1 秒ごとに、今が時間帯の中か、前に出ているアプリが止めるアプリかを確かめる。
+// 止めるアプリは、読むたびに「ランチャーのアプリ − 制限しないアプリ − いつも止めないもの − 自分」で作る。
 // 当てはまれば、画面いっぱいの「作業中」の画面 (残り時間と「ホームに戻る」ボタン) を、そのアプリの上に重ねる。
 // 最後の時間帯が終わったら自分で止まる。画面が裏にあっても、保存した計画に沿って動く。
 // 電池を使いすぎないよう、端末の画面が消えている間は確かめるのをやめ、点いたらすぐ確かめ直す
@@ -42,7 +44,7 @@ import org.json.JSONObject;
 public class AppBlockService extends Service {
     private static final String PREFS = "app-block";
     private static final String KEY_WINDOWS = "windows";
-    private static final String KEY_APPS = "apps";
+    private static final String KEY_ALLOW = "allow";
     private static final String KEY_TEXTS = "texts";
     private static final String CHANNEL = "app-block";
     private static final int NOTIFICATION_ID = 7303;
@@ -92,11 +94,13 @@ public class AppBlockService extends Service {
         }
     };
 
-    static void save(Context context, String windowsJson, String appsJson, String textsJson) {
+    static void save(Context context, String windowsJson, String allowJson, String textsJson) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putString(KEY_WINDOWS, windowsJson)
-            .putString(KEY_APPS, appsJson)
+            .putString(KEY_ALLOW, allowJson)
             .putString(KEY_TEXTS, textsJson)
+            // 前の版 (止めるアプリを選ぶ形) でしまった一覧は、もう読まないので消す
+            .remove("apps")
             .apply();
     }
 
@@ -170,22 +174,31 @@ public class AppBlockService extends Service {
                 JSONObject window = list.getJSONObject(i);
                 loaded[i] = new long[] { window.getLong("from"), window.getLong("to") };
             }
-            Set<String> names = new HashSet<>();
-            JSONArray appList = new JSONArray(prefs.getString(KEY_APPS, "[]"));
-            for (int i = 0; i < appList.length(); i++) names.add(appList.getString(i));
+            Set<String> allow = new HashSet<>();
+            JSONArray allowList = new JSONArray(prefs.getString(KEY_ALLOW, "[]"));
+            for (int i = 0; i < allowList.length(); i++) allow.add(allowList.getString(i));
             JSONObject texts = new JSONObject(prefs.getString(KEY_TEXTS, "{}"));
             title = texts.optString("title", "Focus time");
             home = texts.optString("home", "Home");
             notice = texts.optString("notice", "App blocking is running");
             channelName = texts.optString("channel", "App blocking");
             windows = loaded;
-            // 自分は止めない
-            names.remove(getPackageName());
-            apps = names;
+            apps = blockedApps(allow);
         } catch (Exception e) {
             windows = new long[0][];
             apps = new HashSet<>();
         }
+    }
+
+    // 止めるアプリ ＝ ランチャーのアプリ − 制限しないアプリ − いつも止めないもの − 自分
+    // (PackageManager を読むのでメインスレッドで呼ばれるが、数百件程度なので許容する)
+    private Set<String> blockedApps(Set<String> allow) {
+        Set<String> names = new HashSet<>();
+        for (ResolveInfo info : AppList.launcherActivities(getPackageManager())) names.add(info.activityInfo.packageName);
+        names.removeAll(allow);
+        names.removeAll(AppList.alwaysAllowed(this));
+        names.remove(getPackageName());
+        return names;
     }
 
     private void startInForeground() {

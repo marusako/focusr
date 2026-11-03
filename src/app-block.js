@@ -1,8 +1,8 @@
 // スマホ版の「作業中のアプリの制限」の決まり (画面にも Capacitor にも依存しない純粋な関数)。
-// 作業のタイマーが動いている間の時間帯と、止めるアプリの一覧を Android に渡し、Android が選んだアプリを開けなくする
+// 作業のタイマーが動いている間の時間帯と、制限しないアプリの一覧を Android に渡し、Android が選んだアプリ以外を開けなくする
 // (mobile/AppBlock.java・mobile/AppBlockService.java。src/renderer.js の syncAppBlock)
 
-// 止めるアプリの最大の数
+// 制限しないアプリの最大の数
 const MAX_APPS = 200;
 
 // Android のパッケージ名の形 (英数字と _ を . で区切る。区切りは 1 つ以上)
@@ -27,8 +27,8 @@ export function blockWindows(segments, now) {
   return windows;
 }
 
-// 止めるアプリの一覧を整える。パッケージ名の形のものだけを、重ならないように並べ、最大 200 個にする
-export function normalizeBlockedApps(list) {
+// パッケージ名の一覧 (制限しないアプリ) を整える。パッケージ名の形のものだけを、重ならないように並べ、最大 200 個にする
+export function normalizePackageList(list) {
   if (!Array.isArray(list)) return [];
   const names = list.filter((name) => typeof name === 'string' && PACKAGE_NAME.test(name));
   return [...new Set(names)].sort().slice(0, MAX_APPS);
@@ -38,12 +38,10 @@ export function normalizeBlockedApps(list) {
 // - hidden: 出さない (スマホ版以外)
 // - off: オフ
 // - needsPermission: オンだが、Android の許可 (使用状況へのアクセス・ほかのアプリの上に重ねて表示) が足りない
-// - noApps: 許可はあるが、止めるアプリを選んでいない
 // - ready: 動く
-export function appBlockState({ isMobileApp, enabled, usageAccess, overlay, apps }) {
+export function appBlockState({ isMobileApp, enabled, usageAccess, overlay }) {
   if (!isMobileApp) return 'hidden';
   if (!enabled) return 'off';
   if (!usageAccess || !overlay) return 'needsPermission';
-  if (apps.length === 0) return 'noApps';
   return 'ready';
 }

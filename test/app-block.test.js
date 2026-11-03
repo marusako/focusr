@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { blockWindows, normalizeBlockedApps, appBlockState } from '../src/app-block.js';
+import { blockWindows, normalizePackageList, appBlockState } from '../src/app-block.js';
 
 const NOW = 1000;
 
@@ -74,54 +74,64 @@ test('blockWindows: 区切りがない・作業がないなら空', () => {
   assert.deepEqual(blockWindows([{ round: 1, phase: 'break', koma: 1, endAt: 2000 }], NOW), []);
 });
 
-test('normalizeBlockedApps: 重なりを除き、並べ替える', () => {
+test('normalizePackageList: 重なりを除き、並べ替える', () => {
   assert.deepEqual(
-    normalizeBlockedApps(['com.example.mail', 'com.example.game', 'com.example.mail', 'app.b']),
+    normalizePackageList(['com.example.mail', 'com.example.game', 'com.example.mail', 'app.b']),
     ['app.b', 'com.example.game', 'com.example.mail'],
   );
-  assert.deepEqual(normalizeBlockedApps([]), []);
+  assert.deepEqual(normalizePackageList([]), []);
 });
 
-test('normalizeBlockedApps: 文字列でないもの・空の文字列は捨てる', () => {
-  assert.deepEqual(normalizeBlockedApps([1, null, undefined, {}, [], true, '', 'com.example.game']), ['com.example.game']);
+test('normalizePackageList: 文字列でないもの・空の文字列は捨てる', () => {
+  assert.deepEqual(normalizePackageList([1, null, undefined, {}, [], true, '', 'com.example.game']), ['com.example.game']);
 });
 
-test('normalizeBlockedApps: パッケージ名の形でないものは捨てる', () => {
+test('normalizePackageList: パッケージ名の形でないものは捨てる', () => {
   const bad = ['abc', 'a..b', 'a.b-c', ' a.b', 'a.b ', '.a.b', 'a.b.', 'a b.c', 'a.b/c'];
-  assert.deepEqual(normalizeBlockedApps(bad), []);
+  assert.deepEqual(normalizePackageList(bad), []);
   // 英数字と _ を . で区切った形は残る
-  assert.deepEqual(normalizeBlockedApps(['a.b', 'Com.Example_1.game2']), ['Com.Example_1.game2', 'a.b']);
+  assert.deepEqual(normalizePackageList(['a.b', 'Com.Example_1.game2']), ['Com.Example_1.game2', 'a.b']);
 });
 
-test('normalizeBlockedApps: 最大 200 個。超えた分は捨てる', () => {
+test('normalizePackageList: 最大 200 個。超えた分は捨てる', () => {
   const many = Array.from({ length: 250 }, (_, i) => `com.example.app${String(i).padStart(3, '0')}`);
-  const result = normalizeBlockedApps(many);
+  const result = normalizePackageList(many);
   assert.equal(result.length, 200);
   assert.ok(result.every((name) => many.includes(name)));
   assert.equal(new Set(result).size, 200);
 });
 
-test('normalizeBlockedApps: 配列でない入力は空', () => {
-  assert.deepEqual(normalizeBlockedApps(undefined), []);
-  assert.deepEqual(normalizeBlockedApps('com.example.game'), []);
+test('normalizePackageList: 配列でない入力は空', () => {
+  assert.deepEqual(normalizePackageList(undefined), []);
+  assert.deepEqual(normalizePackageList('com.example.game'), []);
 });
 
-const ready = { isMobileApp: true, enabled: true, usageAccess: true, overlay: true, apps: ['com.example.game'] };
+const ready = { isMobileApp: true, enabled: true, usageAccess: true, overlay: true };
 
-test('appBlockState: 5 つの結果', () => {
+test('appBlockState: 4 つの結果。権限がそろっていれば ready (アプリの一覧は判定に使わない)', () => {
   assert.equal(appBlockState({ ...ready, isMobileApp: false }), 'hidden');
   assert.equal(appBlockState({ ...ready, enabled: false }), 'off');
   assert.equal(appBlockState({ ...ready, usageAccess: false }), 'needsPermission');
   assert.equal(appBlockState({ ...ready, overlay: false }), 'needsPermission');
-  assert.equal(appBlockState({ ...ready, apps: [] }), 'noApps');
   assert.equal(appBlockState(ready), 'ready');
 });
 
-test('appBlockState: 優先順は hidden → off → needsPermission → noApps → ready', () => {
-  const none = { isMobileApp: false, enabled: false, usageAccess: false, overlay: false, apps: [] };
+test('appBlockState: apps / allow の数によらず ready になり、noApps は返らない', () => {
+  for (const extra of [{}, { apps: [] }, { allow: [] }, { allow: ['com.example.game'] }, { apps: ['com.example.game', 'com.example.mail'] }]) {
+    assert.equal(appBlockState({ ...ready, ...extra }), 'ready');
+  }
+  const states = new Set();
+  for (const isMobileApp of [true, false]) for (const enabled of [true, false]) for (const usageAccess of [true, false]) for (const overlay of [true, false]) {
+    states.add(appBlockState({ isMobileApp, enabled, usageAccess, overlay }));
+  }
+  assert.deepEqual([...states].sort(), ['hidden', 'needsPermission', 'off', 'ready']);
+});
+
+test('appBlockState: 優先順は hidden → off → needsPermission → ready', () => {
+  const none = { isMobileApp: false, enabled: false, usageAccess: false, overlay: false };
   assert.equal(appBlockState(none), 'hidden');
   assert.equal(appBlockState({ ...none, isMobileApp: true }), 'off');
   assert.equal(appBlockState({ ...none, isMobileApp: true, enabled: true }), 'needsPermission');
   assert.equal(appBlockState({ ...none, isMobileApp: true, enabled: true, usageAccess: true }), 'needsPermission');
-  assert.equal(appBlockState({ ...none, isMobileApp: true, enabled: true, usageAccess: true, overlay: true }), 'noApps');
+  assert.equal(appBlockState({ ...none, isMobileApp: true, enabled: true, usageAccess: true, overlay: true }), 'ready');
 });

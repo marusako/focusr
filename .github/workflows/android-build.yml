@@ -85,12 +85,12 @@ jobs:
       - name: 作業中のアプリの制限の部品 (mobile/AppBlock.java) のサービス・権限・アプリの一覧の取得を足す
         # PACKAGE_USAGE_STATS は、利用者が設定画面で許可する特別な権限 (Lint が警告するので tools:ignore を付ける)。
         # SYSTEM_ALERT_WINDOW は「ほかのアプリの上に重ねて表示」。サービスの種類は specialUse (Android 14 以降は種類ごとの権限と、
-        # 何に使うかの説明 (property) が要る)。queries は、ホーム画面に出るアプリの一覧を取るのに要る (QUERY_ALL_PACKAGES は使わない)
+        # 何に使うかの説明 (property) が要る)。queries は、ホーム画面に出るアプリの一覧とホームアプリを取るのに要る (QUERY_ALL_PACKAGES は使わない。既定の電話アプリは TelecomManager で取る)
         run: |
           M=android/app/src/main/AndroidManifest.xml
           sed -i '2s#<manifest xmlns:android="http://schemas.android.com/apk/res/android"#<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"#' "$M"
-          sed -i 's#</application>#    <service android:name=".AppBlockService" android:exported="false" android:foregroundServiceType="specialUse">\n            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Blocks apps the user chose while their focus timer is running" />\n        </service>\n    </application>#' "$M"
-          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />\n    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />\n    <queries>\n        <intent>\n            <action android:name="android.intent.action.MAIN" />\n            <category android:name="android.intent.category.LAUNCHER" />\n        </intent>\n    </queries>\n</manifest>#' "$M"
+          sed -i 's#</application>#    <service android:name=".AppBlockService" android:exported="false" android:foregroundServiceType="specialUse">\n            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Blocks apps other than the ones the user allowed while their focus timer is running" />\n        </service>\n    </application>#' "$M"
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />\n    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />\n    <queries>\n        <intent>\n            <action android:name="android.intent.action.MAIN" />\n            <category android:name="android.intent.category.LAUNCHER" />\n        </intent>\n        <intent>\n            <action android:name="android.intent.action.MAIN" />\n            <category android:name="android.intent.category.HOME" />\n        </intent>\n    </queries>\n</manifest>#' "$M"
           grep -q 'xmlns:tools=' "$M" || { echo "::error::xmlns:tools を AndroidManifest.xml に足せなかった"; exit 1; }
           grep -q 'AppBlockService' "$M" || { echo "::error::AppBlockService を AndroidManifest.xml に足せなかった"; exit 1; }
           grep -q 'PACKAGE_USAGE_STATS' "$M" || { echo "::error::作業中のアプリの制限の権限を AndroidManifest.xml に足せなかった"; exit 1; }

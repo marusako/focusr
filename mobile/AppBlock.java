@@ -25,12 +25,12 @@ import java.util.Set;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-// 作業中に、選んだアプリを開けなくする、このアプリだけの部品
+// 作業中に、選んだアプリ以外を開けなくする、このアプリだけの部品
 // (画面からは Capacitor.Plugins.AppBlock で呼ぶ。src/renderer.js の syncAppBlock)。
 // - status: 必要な 2 つの許可 (使用状況へのアクセス・ほかのアプリの上に重ねて表示) が出ているか
 // - openUsageAccessSettings・openOverlaySettings: それぞれの許可を出す Android の設定画面を開く
-// - listApps: ホーム画面に出るアプリ (自分以外) の一覧。名前の順
-// - setPlan: 作業の時間帯 ({ from, to } の並び)・止めるアプリ・重ねる画面の文を保存し、時間帯があって許可がそろっていれば
+// - listApps: ホーム画面に出るアプリ (自分以外) の一覧。名前の順。always は、いつも止めないアプリ (ホームアプリ・既定の電話アプリ)
+// - setPlan: 作業の時間帯 ({ from, to } の並び)・制限しないアプリ・重ねる画面の文を保存し、時間帯があって許可がそろっていれば
 //   サービス (AppBlockService) を始める。そうでなければ止める。サービスが前に出ているアプリを見て、重ねる画面を出す
 @CapacitorPlugin(name = "AppBlock")
 public class AppBlock extends Plugin {
@@ -68,10 +68,10 @@ public class AppBlock extends Plugin {
         getBridge().execute(() -> {
             Context context = getContext();
             PackageManager packages = context.getPackageManager();
-            Intent launcher = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+            Set<String> always = AppList.alwaysAllowed(context);
             List<String[]> apps = new ArrayList<>();
             Set<String> seen = new HashSet<>();
-            for (ResolveInfo info : packages.queryIntentActivities(launcher, 0)) {
+            for (ResolveInfo info : AppList.launcherActivities(packages)) {
                 String packageName = info.activityInfo.packageName;
                 if (packageName.equals(context.getPackageName()) || !seen.add(packageName)) continue;
                 apps.add(new String[] { packageName, String.valueOf(info.loadLabel(packages)) });
@@ -83,6 +83,7 @@ public class AppBlock extends Plugin {
                 JSObject item = new JSObject();
                 item.put("packageName", app[0]);
                 item.put("label", app[1]);
+                item.put("always", always.contains(app[0]));
                 list.put(item);
             }
             JSObject result = new JSObject();
@@ -95,11 +96,10 @@ public class AppBlock extends Plugin {
     public void setPlan(PluginCall call) {
         Context context = getContext();
         JSArray windows = call.getArray("windows", new JSArray());
-        JSArray apps = call.getArray("apps", new JSArray());
+        JSArray allow = call.getArray("allow", new JSArray());
         JSObject texts = call.getObject("texts", new JSObject());
-        AppBlockService.save(context, windows.toString(), apps.toString(), texts.toString());
-        boolean start = apps.length() > 0
-            && hasFutureWindow(windows, System.currentTimeMillis())
+        AppBlockService.save(context, windows.toString(), allow.toString(), texts.toString());
+        boolean start = hasFutureWindow(windows, System.currentTimeMillis())
             && hasUsageAccess(context)
             && Settings.canDrawOverlays(context);
         if (start) {

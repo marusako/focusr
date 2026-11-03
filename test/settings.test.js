@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_SETTINGS, RANGES, THEMES, parseSettings, effectiveVolume, loudness, resetSoundSettings } from '../src/settings.js';
-import { normalizeBlockedApps } from '../src/app-block.js';
+import { normalizePackageList } from '../src/app-block.js';
 
 test('空の入力なら既定値になる', () => {
   assert.deepEqual(parseSettings({}), DEFAULT_SETTINGS);
@@ -250,9 +250,9 @@ test('音量の数字 (0〜100) から、鳴らす大きさ (0〜1) へ: 2 乗�
 
 test('作業中のアプリの制限: 既定は オフ・止めるアプリなし', () => {
   assert.equal(DEFAULT_SETTINGS.appBlockEnabled, false);
-  assert.deepEqual(DEFAULT_SETTINGS.appBlockApps, []);
+  assert.deepEqual(DEFAULT_SETTINGS.appBlockAllowApps, []);
   assert.equal(parseSettings({}).appBlockEnabled, false);
-  assert.deepEqual(parseSettings({}).appBlockApps, []);
+  assert.deepEqual(parseSettings({}).appBlockAllowApps, []);
 });
 
 test('appBlockEnabled は true のときだけ true (文字列や数字は false)', () => {
@@ -262,11 +262,21 @@ test('appBlockEnabled は true のときだけ true (文字列や数字は false
   assert.equal(parseSettings({ appBlockEnabled: false }).appBlockEnabled, false);
 });
 
-test('appBlockApps は normalizeBlockedApps と同じ整理になる。不正な値・配列でない値は空', () => {
+test('appBlockAllowApps は normalizePackageList と同じ整理になる。不正な値・配列でない値は空', () => {
   const list = ['com.example.mail', 'com.example.game', 'com.example.game', 'abc', 42, '', 'a..b'];
-  assert.deepEqual(parseSettings({ appBlockApps: list }).appBlockApps, normalizeBlockedApps(list));
-  assert.deepEqual(parseSettings({ appBlockApps: list }).appBlockApps, ['com.example.game', 'com.example.mail']);
+  assert.deepEqual(parseSettings({ appBlockAllowApps: list }).appBlockAllowApps, normalizePackageList(list));
+  assert.deepEqual(parseSettings({ appBlockAllowApps: list }).appBlockAllowApps, ['com.example.game', 'com.example.mail']);
   for (const bad of ['com.example.game', 5, {}, null, true]) {
-    assert.deepEqual(parseSettings({ appBlockApps: bad }).appBlockApps, []);
+    assert.deepEqual(parseSettings({ appBlockAllowApps: bad }).appBlockAllowApps, []);
   }
+});
+
+test('古い appBlockApps は読まない (結果に出ず、appBlockAllowApps にも引き継がない)', () => {
+  const parsed = parseSettings({ appBlockApps: ['com.example.game'] });
+  assert.equal('appBlockApps' in parsed, false);
+  assert.deepEqual(parsed.appBlockAllowApps, []);
+  assert.equal('appBlockApps' in DEFAULT_SETTINGS, false);
+  const both = parseSettings({ appBlockApps: ['com.example.game'], appBlockAllowApps: ['com.example.mail'] });
+  assert.equal('appBlockApps' in both, false);
+  assert.deepEqual(both.appBlockAllowApps, ['com.example.mail']);
 });

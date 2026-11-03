@@ -6,7 +6,7 @@ import { SE_SOUNDS, DEFAULT_SE } from './se-sounds.js';
 import { TIMER_FONTS, DEFAULT_TIMER_FONT } from './fonts.js';
 import { parseCustomPresets } from './presets.js';
 import { REPEAT_MODES, ALL_TRACKS, parsePlaylists } from './playlist.js';
-import { normalizeBlockedApps } from './app-block.js';
+import { normalizePackageList } from './app-block.js';
 import { REMINDER_MINUTES, GENERATE_DEFAULTS, parseGenerateOptions } from './schedule.js';
 
 export const DEFAULT_SETTINGS = Object.freeze({
@@ -35,8 +35,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   scheduleReminder: 0, // 予定 (カレンダーの予定と毎週のコマ) の何分前に知らせるか (schedule.js の REMINDER_MINUTES。0 は知らせない)
   timetableGenerate: GENERATE_DEFAULTS, // 「まとめて作る」で最後に使った値 (次に開いたときの初めの値)
   customPresets: [], // 自分で保存したタイマーのプリセット (presets.js)
-  appBlockEnabled: false, // 作業中に、選んだアプリを開けなくするか (スマホ版だけ。app-block.js)
-  appBlockApps: [], // 開けなくするアプリのパッケージ名 (app-block.js の normalizeBlockedApps)
+  appBlockEnabled: false, // 作業中に、選んだアプリ以外を開けなくするか (スマホ版だけ。app-block.js)
+  appBlockAllowApps: [], // 作業中も開けるアプリのパッケージ名 (app-block.js の normalizePackageList)
 });
 
 // 数値の設定の範囲。画面のホイールの選択肢もここから作る
@@ -107,7 +107,7 @@ export function parseSettings(input) {
   result.customPresets = parseCustomPresets(raw.customPresets, RANGES);
   // true のときだけオン
   result.appBlockEnabled = raw.appBlockEnabled === true;
-  result.appBlockApps = normalizeBlockedApps(raw.appBlockApps);
+  result.appBlockAllowApps = normalizePackageList(raw.appBlockAllowApps);
   // 既定値と同じ並び順にそろえる (以前の版の autoStart・volume など、知らない項目はここで落ちる)
   return Object.fromEntries(Object.keys(DEFAULT_SETTINGS).map((key) => [key, result[key]]));
 }
