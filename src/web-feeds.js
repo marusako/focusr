@@ -3,13 +3,13 @@
 // 一覧・追加・外す・読み直しの決まりは feed-store.js。ここでは、保存・暗号化・通信のしかたを渡す:
 // - URL は、自前の部品 UrlVault (mobile/UrlVault.java) が Android の Keystore の鍵で暗号化する。
 //   鍵は端末の外に出せないので、ほかの端末では暗号を解けない
-// - 一覧は localStorage の kugiriFeeds にしまう。書き出しの項目 (data-file.js の DATA_KEYS) ではないので、書き出しには入らない
+// - 一覧は localStorage の focusrFeeds にしまう。書き出しの項目 (data-file.js の DATA_KEYS) ではないので、書き出しには入らない
 // - 通信は Capacitor の CapacitorHttp (Android の側で通信する)。画面の fetch では、カレンダーのサーバーが
 //   ほかのサイトからの読み取りを許していない (CORS) ため読めない。画面の CSP もそのまま (外との通信は api.github.com だけ)
 // - 読み直すのは、開いたとき・30 分ごと (アプリが動いている間)・「今すぐ更新」
 import { createFeedStore, responseError, FETCH_TIMEOUT_MS, MAX_FEED_BYTES, REFRESH_INTERVAL_MS } from './feed-store.js';
 
-const STORAGE_KEY = 'kugiriFeeds';
+const STORAGE_KEY = 'focusrFeeds';
 
 export function createWebFeeds({ plugins, storage }) {
   const { UrlVault, CapacitorHttp } = plugins;

@@ -5,10 +5,10 @@ import { applyDevVariant } from '../scripts/android-variant.mjs';
 const gradle = `apply plugin: 'com.android.application'
 
 android {
-    namespace = "io.github.marusako.kugiritimer"
+    namespace = "io.github.marusako.focusr"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "io.github.marusako.kugiritimer"
+        applicationId "io.github.marusako.focusr"
         minSdkVersion rootProject.ext.minSdkVersion
         versionCode 1
         versionName "1.0"
@@ -20,8 +20,8 @@ const strings = `<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Focusr</string>
     <string name="title_activity_main">Focusr</string>
-    <string name="package_name">io.github.marusako.kugiritimer</string>
-    <string name="custom_url_scheme">io.github.marusako.kugiritimer</string>
+    <string name="package_name">io.github.marusako.focusr</string>
+    <string name="custom_url_scheme">io.github.marusako.focusr</string>
 </resources>
 `;
 
@@ -35,12 +35,12 @@ const changedLines = (before, after) => {
 
 test('applicationId の末尾に .dev を付ける', () => {
   const out = applyDevVariant({ gradle, strings });
-  assert.ok(out.gradle.includes('        applicationId "io.github.marusako.kugiritimer.dev"'));
+  assert.ok(out.gradle.includes('        applicationId "io.github.marusako.focusr.dev"'));
 });
 
 test('namespace は変えない', () => {
   const out = applyDevVariant({ gradle, strings });
-  assert.ok(out.gradle.includes('    namespace = "io.github.marusako.kugiritimer"\n'));
+  assert.ok(out.gradle.includes('    namespace = "io.github.marusako.focusr"\n'));
 });
 
 test('gradle は applicationId の 1 行だけが変わる', () => {
@@ -58,8 +58,8 @@ test('app_name と title_activity_main を「Focusr (開発版)」にする', ()
 
 test('package_name と custom_url_scheme は変えない。ほかの行も変わらない', () => {
   const out = applyDevVariant({ gradle, strings });
-  assert.ok(out.strings.includes('<string name="package_name">io.github.marusako.kugiritimer</string>'));
-  assert.ok(out.strings.includes('<string name="custom_url_scheme">io.github.marusako.kugiritimer</string>'));
+  assert.ok(out.strings.includes('<string name="package_name">io.github.marusako.focusr</string>'));
+  assert.ok(out.strings.includes('<string name="custom_url_scheme">io.github.marusako.focusr</string>'));
   const diff = changedLines(strings, out.strings);
   assert.equal(diff.length, 2, '変わるのは app_name と title_activity_main の 2 行だけ');
 });

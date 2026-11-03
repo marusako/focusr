@@ -6,7 +6,7 @@
 import { isStoredName, storedNameFor, acceptFor } from './media-rules.js';
 import { extractCover } from './cover-art.js';
 
-const DB_NAME = 'kugiri-media';
+const DB_NAME = 'focusr-media';
 const STORE = 'files';
 
 // IndexedDB の要求 (request) を Promise にする

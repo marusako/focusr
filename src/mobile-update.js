@@ -3,11 +3,11 @@
 // スマホ版は起動したときに最新の Release を見て、今より新しい版の APK があれば知らせる。
 // Play 以外から入れたアプリは黙って入れ替えられないので、ダウンロードを開いて、利用者に「インストール」を押してもらう
 const VERSION = /^v?(\d+)\.(\d+)\.(\d+)$/;
-// 名前を Kugiri Timer から Focusr に変えた (2026-10)。名前を変える前に出した Release と、移り変わりの間のために、
-// 以前の APK の名前 (kugiri-timer-<版>.apk) と、以前のリポジトリの名前 (kugiri-timer) も受け付ける
-const APK_NAME = /^(?:focusr|kugiri-timer)-(\d+\.\d+\.\d+)\.apk$/;
-const REPOSITORIES = ['https://github.com/marusako/focusr', 'https://github.com/marusako/kugiri-timer'];
-const fromRepository = (url, kind) => REPOSITORIES.some((repo) => url.startsWith(`${repo}/releases/${kind}/`));
+// 2026-11-03 に、リポジトリの名前とアプリの識別子も focusr にそろえた。識別子が変わったので、このコードのアプリは
+// 以前の名前 (kugiri-timer) の Release を見ることがなく、以前の名前は受け付けない
+const APK_NAME = /^focusr-(\d+\.\d+\.\d+)\.apk$/;
+const REPOSITORY = 'https://github.com/marusako/focusr';
+const fromRepository = (url, kind) => url.startsWith(`${REPOSITORY}/releases/${kind}/`);
 
 function parseVersion(text) {
   const match = VERSION.exec(String(text ?? '').trim());

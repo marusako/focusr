@@ -1,4 +1,4 @@
-package io.github.marusako.kugiritimer;
+package io.github.marusako.focusr;
 
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;

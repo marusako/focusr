@@ -1,4 +1,4 @@
-package io.github.marusako.kugiritimer;
+package io.github.marusako.focusr;
 
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
@@ -24,7 +24,7 @@ import javax.crypto.spec.GCMParameterSpec;
 @CapacitorPlugin(name = "UrlVault")
 public class UrlVault extends Plugin {
     private static final String KEYSTORE = "AndroidKeyStore";
-    private static final String KEY_ALIAS = "kugiri-feed-url";
+    private static final String KEY_ALIAS = "focusr-feed-url";
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final int IV_BYTES = 12;
     private static final int TAG_BITS = 128;

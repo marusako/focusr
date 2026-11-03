@@ -1,4 +1,4 @@
-package io.github.marusako.kugiritimer;
+package io.github.marusako.focusr;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -26,10 +26,10 @@ import java.util.Objects;
 public class NowPlayingService extends Service {
     static final String EXTRA_TITLE = "title";
     static final String EXTRA_PLAYING = "playing";
-    private static final String ACTION_PLAY = "io.github.marusako.kugiritimer.PLAY";
-    private static final String ACTION_PAUSE = "io.github.marusako.kugiritimer.PAUSE";
-    private static final String ACTION_NEXT = "io.github.marusako.kugiritimer.NEXT";
-    private static final String ACTION_PREVIOUS = "io.github.marusako.kugiritimer.PREVIOUS";
+    private static final String ACTION_PLAY = "io.github.marusako.focusr.PLAY";
+    private static final String ACTION_PAUSE = "io.github.marusako.focusr.PAUSE";
+    private static final String ACTION_NEXT = "io.github.marusako.focusr.NEXT";
+    private static final String ACTION_PREVIOUS = "io.github.marusako.focusr.PREVIOUS";
     private static final String CHANNEL = "now-playing";
     private static final int NOTIFICATION_ID = 7302;
     // 1 曲がどれだけ長くても、ウェイクロックを持ち続けないための上限 (再生中は、書きかえのたびに取り直す)

@@ -1,4 +1,4 @@
-package io.github.marusako.kugiritimer;
+package io.github.marusako.focusr;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;

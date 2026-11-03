@@ -57,7 +57,7 @@
 - `package.json` の scripts に `"dev": "node scripts/dev-server.mjs"` を足す
 
 ### Android の開発版 APK
-- 完成版と並べて入れられるよう、識別子（applicationId）を `io.github.marusako.kugiritimer.dev`、名前を「Focusr (開発版)」にした APK を作る
+- 完成版と並べて入れられるよう、識別子（applicationId）を `io.github.marusako.kugiritimer.dev`（2026-11-03 に識別子を変えたので、今は `io.github.marusako.focusr.dev`）、名前を「Focusr (開発版)」にした APK を作る
   - Java のパッケージ名（namespace）は変えない。mobile/*.java はそのまま使える（通知のボタンは明示的な Intent なので、2 つ入れてもぶつからない）
   - 識別子が違うと Android は別のアプリとして扱うので、データは自動で別々になる
   - versionName は `<版>-dev`（設定画面の版の表示で開発版だと分かる）
@@ -83,10 +83,10 @@
 
 ## 段階 3：Web 版（GitHub Pages）
 
-URL は `https://marusako.github.io/kugiri-timer/`（リポジトリの名前を変えるまで）。
+URL は `https://marusako.github.io/focusr/`（2026-11-03 にリポジトリの名前を focusr に変えた。公開したときは `/kugiri-timer/` だった）。
 
 ### 調べてわかったこと（2026-11-03）
-- index.html・CSS・JS の中のパスはすべて相対なので、`/kugiri-timer/` の下でもそのまま動く
+- index.html・CSS・JS の中のパスはすべて相対なので、`/focusr/` のようなサブパスの下でもそのまま動く
 - 外部カレンダーは、Web 版ではすでに隠れている（`calendarFeeds` が null のとき `#feeds-section` を出さない）
 - Android 版だけの設定項目は、設定画面にない（ロック画面・システムの帯は自動で動く）
 - 通知：`showNotification` は Web 版でブラウザーの `Notification` を出すが、**許可を一度も求めていない**ので、実際には出ない

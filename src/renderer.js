@@ -3188,7 +3188,7 @@ async function checkMobileUpdate() {
     els.appVersion.hidden = false;
     // 開発版 (識別子が .dev) は、完成版の Release と比べても意味がないので、更新の確認をしない
     if (isDevAppId(id)) return;
-    const response = await fetch('https://api.github.com/repos/marusako/kugiri-timer/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
+    const response = await fetch('https://api.github.com/repos/marusako/focusr/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
     if (!response.ok) return;
     const found = apkUpdate(await response.json(), version);
     if (!found) return;
