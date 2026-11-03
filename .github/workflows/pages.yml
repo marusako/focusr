@@ -1,0 +1,46 @@
+name: Pages
+
+# Web 版を GitHub Pages に公開する。画面 (src) をそのまま配るので、ビルドはいらない。
+# 公開の前に、テストが通ることを確かめる。リポジトリの設定で、Pages の公開元を「GitHub Actions」にしておく。
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 公開は一度に 1 つずつ。走っている公開は途中で止めず (公開が半端にならないように)、待っているものは最新の 1 つだけを残す
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: src
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

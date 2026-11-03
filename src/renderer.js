@@ -14,6 +14,7 @@ import { RANGES, parseSettings, effectiveVolume, resetSoundSettings } from './se
 import { periodDays, shiftAnchor, periodFocus, axisTicks } from './focus-stats.js';
 import { TIMER_NOTICE_COUNT, timerNoticePlan, reconcileNotices } from './mobile-notice.js';
 import { timerSegments, idleTimer } from './lock-screen.js';
+import { webNoticeState } from './web-notice.js';
 import { apkUpdate, isDevAppId } from './mobile-update.js';
 import { TOTAL_ID, ongoingItems, focusStepMs, addFocusTime, addFocusCount, focusOf, dayFocus, forgetMissing, parseFocusLog, focusMinutes } from './focus-log.js';
 import { INITIAL_UPDATE_STATE, nextUpdateState, isBannerVisible } from './update-status.js';
@@ -275,7 +276,13 @@ function timerNoticeText(finishedMode, nextMode) {
 // Web 版は、ブラウザーの通知を出す。
 // スマホ版 (Capacitor) は、タイマーの終わりも予定の知らせも先に Android に預けてあるので (syncMobileNotices)、ここでは出さない
 function showNotification(title, body) {
-  if (!mobileNotifications && typeof Notification === 'function') new Notification(title, { body, silent: true });
+  if (mobileNotifications || typeof Notification !== 'function') return;
+  try {
+    new Notification(title, { body, silent: true });
+  } catch {
+    // Android の Chrome は、ページから直接 new Notification() すると TypeError (Illegal constructor) を投げる (Service Worker が要る)。
+    // 通知が出せなくても、あとの処理 (予定の確認・画面の更新・アラーム) を止めないよう、黙って諦める
+  }
 }
 
 // --- スマホ版 (Capacitor) の通知 ---
@@ -663,6 +670,7 @@ function applyLanguage() {
   for (const column of document.querySelectorAll('[data-label-key]')) {
     column.querySelector('.wheel')?.setAttribute('aria-label', t(column.dataset.labelKey));
   }
+  renderWebNotice();
   els.language.value = settings.language;
   if (appVersion) els.appVersion.textContent = t('version', { version: appVersion });
 }
@@ -1182,6 +1190,29 @@ $('data-import').addEventListener('click', async () => {
   }
   dataReplaced = false;
   showStatus('dataImportInvalid');
+});
+
+// --- 通知の許可 (Web 版だけ。許可の状態は、起動したときと、ボタンの結果が返ったときに描き直す) ---
+const webNotice = { section: $('web-notice-section'), status: $('web-notice-status'), allow: $('web-notice-allow') };
+function renderWebNotice() {
+  const state = webNoticeState({
+    isMobileApp,
+    hasNotification: typeof Notification === 'function',
+    permission: globalThis.Notification?.permission,
+  });
+  webNotice.section.hidden = state === 'hidden';
+  webNotice.allow.hidden = state !== 'ask';
+  webNotice.status.hidden = state === 'hidden';
+  if (state === 'hidden') return;
+  webNotice.status.textContent = t({ ask: 'noticeAsk', on: 'noticeOn', blocked: 'noticeBlocked' }[state]);
+}
+webNotice.allow.addEventListener('click', async () => {
+  try {
+    await Notification.requestPermission();
+  } catch {
+    // 古いブラウザーなどで許可を求められなかったときも、今の状態のまま描き直す
+  }
+  renderWebNotice();
 });
 
 // --- BGM の再生バー ---
@@ -3261,6 +3292,7 @@ function renderFeeds() {
   if (!external.available) showFeedError('noEncryption');
 }
 
+$('feeds-web-only').hidden = Boolean(calendarFeeds);
 if (calendarFeeds) {
   feedsUi.section.hidden = false;
   feedsUi.form.addEventListener('submit', async (e) => {

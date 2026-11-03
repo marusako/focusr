@@ -4,7 +4,7 @@
 
 Android 向けの作業タイマーです。作業と休憩を区切ってくり返し、集中力を保てます。カレンダーと、コマをまとめたラウンド（時間割）で予定を管理でき、壁紙と BGM で落ち着いて作業できる画面にできます。
 
-Release の `focusr-<版>.apk` から入れられます（下の「Android 版」）。ブラウザーで使える Web 版も準備中です。
+Release の `focusr-<版>.apk` から入れられます（下の「Android 版」）。ブラウザーで使える Web 版もあります（下の「Web 版」）。
 
 Windows 版（Electron）は、2026-11 に配信をやめました。データは、Windows 版の「書き出し」で作ったファイルを、Android 版の「読み込み」で引き継げます。
 
@@ -161,6 +161,17 @@ node scripts/release-notes.mjs v1.2.0 release-body.md
 
 更新のお知らせは、リポジトリが公開（Public）されている必要があります。非公開のままだと、アプリから Release を読めないため、更新の確認は失敗します（エラーは画面に出しません）。
 
+### Web 版
+
+URL：<https://marusako.github.io/kugiri-timer/>（main に push すると、`.github/workflows/pages.yml` がテストを通してから `src` をそのまま GitHub Pages に公開します）
+
+Android 版と同じ画面を、ブラウザーでそのまま使えます。Android 版との違いは次のとおりです。
+
+- **外部カレンダー**：使えません（カレンダーのサーバーが、ほかのサイトからの読み取りを許していないため）。カレンダーの設定に「Android 版だけで使えます」と出します
+- **通知**：ブラウザーの通知です。設定の「通知」で許可が要ります。タブを開いている間だけ届き、閉じると届きません（`src/web-notice.js`）。ブロックされたときは、ブラウザーの設定から変えます。Android の Chrome では今は通知が出ません（ページから直接通知を作れず、Service Worker が要るため。PWA にする次の段階で対応する予定です）。iOS の Safari などブラウザーに通知の仕組みがないときは、通知の欄が出ません
+- **データ**：そのブラウザーの中（localStorage・IndexedDB）にだけ残ります。ブラウザーのデータを消すと消えるので、「書き出し」でファイルにして持ち出せます。Android 版へも、「読み込み」で引き継げます
+- ロック画面の表示や曲の通知など、Android の機能を使うものはありません
+
 ### Android 版
 
 今の画面（`src`）を [Capacitor](https://capacitorjs.com/) で包んだ Android のアプリです。開発に使うパソコンに Android Studio を入れなくてもよいように、APK は GitHub Actions でビルドします。
@@ -209,6 +220,7 @@ src/focus-log.js   集中の記録（日ごとの合計と、予定ごと）
 src/focus-stats.js 記録の画面の、週・月の集計
 src/ical-feed.js   外部カレンダーの .ics を予定の形に直す（ical.js を使う）
 src/feed-store.js  外部カレンダーの一覧・追加・外す・読み直し（保存・暗号化・通信は使う側が渡す）
+src/web-notice.js  Web 版の「通知」の欄の状態（許可の状態から、出す・許可を求める・オン・ブロックを決める）
 src/web-feeds.js   Android 版の外部カレンダー（Keystore で暗号化・CapacitorHttp で読む）
 src/vendor/ical.js ical.js（MPL-2.0）を手を加えずに写したもの（バンドラーなしで画面からも読むため。テストで npm の版と同じことを確かめる）
 src/fonts.js       タイマーの数字のフォントの一覧

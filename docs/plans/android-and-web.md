@@ -83,17 +83,49 @@
 
 ## 段階 3：Web 版（GitHub Pages）
 
-- GitHub Actions で、main に push したときに `src` を GitHub Pages に公開する（新しい workflow。`test` が通ったときだけ）
-- Web 版で使えないものは、画面に出さないか、使えない理由を出す
-  - 外部カレンダー（カレンダーのサーバーが、ほかのサイトからの読み取りを許していない（CORS）ため）
-  - Android 版だけの設定（ロック画面・システムの帯など）
-- 通知は、ブラウザーの通知の許可を求めて出す（タブを開いている間だけ）
-- README に Web 版の URL と、できること・できないことを書く
+URL は `https://marusako.github.io/kugiri-timer/`（リポジトリの名前を変えるまで）。
+
+### 調べてわかったこと（2026-11-03）
+- index.html・CSS・JS の中のパスはすべて相対なので、`/kugiri-timer/` の下でもそのまま動く
+- 外部カレンダーは、Web 版ではすでに隠れている（`calendarFeeds` が null のとき `#feeds-section` を出さない）
+- Android 版だけの設定項目は、設定画面にない（ロック画面・システムの帯は自動で動く）
+- 通知：`showNotification` は Web 版でブラウザーの `Notification` を出すが、**許可を一度も求めていない**ので、実際には出ない
+
+### 公開の仕組み
+- 新しい `.github/workflows/pages.yml`：main に push したとき（`src/**` か pages.yml が変わったとき）と、手で動かしたとき
+  - `npm ci` → `npm test` → `src` をそのまま GitHub Pages の成果物にして公開する（`actions/upload-pages-artifact` と `actions/deploy-pages`。版は作るときに最新を確かめる）
+  - 権限は `pages: write`・`id-token: write`・`contents: read`。公開は一度に 1 つずつ。走っている公開は途中で止めず、待っているものは最新の 1 つだけを残す（concurrency。`cancel-in-progress: false`。GitHub の公式のひな形と同じ）
+- リポジトリの設定で、Pages の公開元を「GitHub Actions」にする（本体が `gh api` でする。外に影響するので、する前に開発者に確かめる）
+
+### 通知の許可（新しい振る舞い）
+- 設定パネルの「データ」の上に「通知」の欄を足す。Web 版で、ブラウザーに `Notification` があるときだけ出す（Android 版では出さない。Android は起動時に許可を求めている）
+- 欄の中身は、許可の状態で変わる
+  - まだ決めていない（`default`）：説明と「通知を許可する」ボタン。押すと `Notification.requestPermission()`
+  - 許可済み（`granted`）：「通知はオンです（このタブを開いている間だけ届きます）」
+  - 拒否（`denied`）：「ブラウザーの設定で通知がブロックされています。アドレスバーの左のマークから変えられます」（今の Chrome は鍵のアイコンではないため、「左のマーク」にした）
+- 文言は 10 言語すべてに足す（i18n のテストが、全言語に同じ鍵があるかを確かめている）
+
+#### 外から見える形
+- 新しい `src/web-notice.js` が export する `webNoticeState({ isMobileApp, hasNotification, permission })` → `'hidden'` | `'ask'` | `'on'` | `'blocked'`
+  - `isMobileApp` が true、または `hasNotification` が false → `'hidden'`
+  - `permission` が `'granted'` → `'on'`、`'denied'` → `'blocked'`、それ以外（`'default'`・知らない値・undefined）→ `'ask'`
+- renderer.js は、起動したときと、ボタンを押して許可の結果が返ったときに、この関数で欄を描き直す
+
+### 外部カレンダー
+- Web 版では今までどおり隠す。かわりに、カレンダーの設定の欄に「外部カレンダーの取り込みは Android 版だけで使えます」の 1 行を出す（Web 版だけ）
+
+### README
+- Web 版の URL と、できること・できないこと（外部カレンダーなし、通知はタブを開いている間だけ、データはそのブラウザーの中だけ）を書く
 
 ### 受け入れ条件
-1. 公開した URL で開いて、段階 1 の 3 と同じことが動く
-2. 外部カレンダーなど使えないものが、壊れた状態で出ていない
-3. Android 版の動きは変わらない
+1. `npm test` が通る（終了コード 0）。`webNoticeState` のテストがある。i18n のテストで、新しい文言が全言語にある
+2. `npm run dev` で開き、通知の欄が出て、ボタンで許可を求められる（本体がブラウザーで確かめる）
+3. 公開した URL で開いて、タイマー・ストップウォッチ・レベル・カレンダー・設定・データの書き出しと読み込みが動く。コンソールにエラーがない（本体が確かめる）
+4. 外部カレンダーなど使えないものが、壊れた状態で出ていない
+5. Android 版の動きは変わらない（通知の欄が出ない）
+
+### テストのコマンド
+`npm test`（終了コード 0 で合格）。新しいテストは `test/web-notice.test.js`
 
 ## あとの段階（この計画では作らない）
 - PWA（manifest・Service Worker。インストールとオフライン）

@@ -458,6 +458,8 @@
           </form>
           <p class="hint" data-i18n="feedsHint"></p>
         </section>
+        <!-- Web 版では外部カレンダーを使えないので、その説明だけ出す (renderer.js) -->
+        <p class="hint" id="feeds-web-only" data-i18n="feedsWebOnly" hidden></p>
       </div>
     </div>
     </div>
@@ -567,6 +569,14 @@
       <div class="row">
         <label for="language" data-i18n="language"></label>
         <select id="language" class="select"></select>
+      </div>
+      <!-- 通知の許可 (Web 版で、ブラウザーに Notification があるときだけ出す。renderer.js) -->
+      <div class="data-tools" id="web-notice-section" hidden>
+        <h3 class="section-title" data-i18n="noticeTitle"></h3>
+        <p class="hint" id="web-notice-status"></p>
+        <div class="data-buttons">
+          <button type="button" class="secondary small" id="web-notice-allow" data-i18n="noticeAllow"></button>
+        </div>
       </div>
       <!-- データの書き出し・読み込み (Android 版・Web 版で出す)。取り込んだ曲・壁紙のファイルは含めない -->
       <div class="data-tools">
