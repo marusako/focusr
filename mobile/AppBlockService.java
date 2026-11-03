@@ -6,8 +6,10 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.graphics.Color;
@@ -17,12 +19,14 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import androidx.core.content.ContextCompat;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -32,7 +36,9 @@ import org.json.JSONObject;
 // 作業の時間帯の間だけ動く、フォアグラウンドサービス。画面 (src/renderer.js) が AppBlock.setPlan で渡した計画
 // (作業の時間帯・止めるアプリ・文) を保存から読み、1 秒ごとに、今が時間帯の中か、前に出ているアプリが止めるアプリかを確かめる。
 // 当てはまれば、画面いっぱいの「作業中」の画面 (残り時間と「ホームに戻る」ボタン) を、そのアプリの上に重ねる。
-// 最後の時間帯が終わったら自分で止まる。画面が裏にあっても、保存した計画に沿って動く
+// 最後の時間帯が終わったら自分で止まる。画面が裏にあっても、保存した計画に沿って動く。
+// 電池を使いすぎないよう、端末の画面が消えている間は確かめるのをやめ、点いたらすぐ確かめ直す
+// (画面が消えている間は、止めるアプリも使えないため。時間帯が終わったあとに止まるのも、次に画面が点いたとき)
 public class AppBlockService extends Service {
     private static final String PREFS = "app-block";
     private static final String KEY_WINDOWS = "windows";
@@ -63,10 +69,26 @@ public class AppBlockService extends Service {
     private long lastQueryTime;
     private View overlay;
     private TextView remaining;
+    // 端末の画面が点いているか。消えている間は確かめない
+    private boolean screenOn = true;
     private final Runnable tick = new Runnable() {
         @Override
         public void run() {
-            if (check()) handler.postDelayed(this, 1000);
+            if (screenOn && check()) handler.postDelayed(this, 1000);
+        }
+    };
+    // 画面が消えた・点いたの知らせ (システムの知らせなので、アプリの中でだけ受け取る登録でも届く)
+    private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            handler.removeCallbacks(tick);
+            if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
+                screenOn = false;
+                hideOverlay();
+            } else if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
+                screenOn = true;
+                handler.post(tick);
+            }
         }
     };
 
@@ -100,6 +122,11 @@ public class AppBlockService extends Service {
     public void onCreate() {
         super.onCreate();
         instance = this;
+        PowerManager power = getSystemService(PowerManager.class);
+        screenOn = power == null || power.isInteractive();
+        IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_OFF);
+        filter.addAction(Intent.ACTION_SCREEN_ON);
+        ContextCompat.registerReceiver(this, screenReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     @Override
@@ -121,6 +148,7 @@ public class AppBlockService extends Service {
     @Override
     public void onDestroy() {
         instance = null;
+        unregisterReceiver(screenReceiver);
         handler.removeCallbacks(tick);
         hideOverlay();
         stopForeground(true);
