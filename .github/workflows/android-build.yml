@@ -3,7 +3,9 @@ name: Android build
 # スマホ版 (Capacitor) の APK を作る、ほかのワークフローから呼び出して使う手順 (android.yml と release.yml から呼ぶ)。
 # 開発に使うパソコンには Android Studio を入れられないので、GitHub のサーバー (Android SDK が最初から入っている) でビルドする。
 # android/ フォルダーは git に入れず、ここで毎回作り直す。署名には、Secrets に入れた固定の鍵を使う (なければ失敗する)。
-# variant が dev のときは、完成版と並べて入れられる開発版 (識別子の末尾が .dev、名前は「Focusr (開発版)」、APK は focusr-dev-<版>.apk) にする。
+# variant が dev のときは、完成版と並べて入れられる開発版 (識別子の末尾が .dev、名前は「Focusr (開発版)」) にし、
+# 下書き (draft) の Release「dev」に focusr-dev.apk として上書きで置く。下書きはリポジトリに書き込める人にしか見えないので、
+# リポジトリが公開のままでも、開発版は開発者だけが取れる (Actions の成果物は、ログインした人なら誰でも取れるため使わない)。
 # release-tag を渡したときは、その Release に focusr-<版>.apk として加える (スマホ版が更新を知らせるのに使う)。
 on:
   workflow_call:
@@ -124,10 +126,26 @@ jobs:
           out=$("$TOOLS/apksigner" verify --print-certs "$APK" 2>&1) || fail "apksigner verify" "$out"
           printf '%s\n' "$out" | grep -E 'certificate (DN|SHA-256)' || true
       - uses: actions/upload-artifact@v7
+        if: inputs.variant != 'dev'
         with:
-          name: ${{ inputs.variant == 'dev' && 'focusr-android-dev' || 'focusr-android' }}
+          name: focusr-android
           path: focusr-*.apk
           retention-days: 14
+      - name: 開発版を下書きの Release「dev」に置く (開発者だけが取れる)
+        if: inputs.variant == 'dev'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # 下書きのままにしておく。公開すると誰でも見られ、完成版の更新の知らせ (最新の Release を見る) にも混ざるため
+          NOTES="開発版 $VERSION-dev (コミット ${GITHUB_SHA:0:7})。下書きのまま使う。公開しない。"
+          if gh release view dev > /dev/null 2>&1; then
+            gh release edit dev --draft=true --notes "$NOTES"
+          else
+            gh release create dev --draft --title "開発版 (下書き・開発者だけ)" --notes "$NOTES"
+          fi
+          cp "$APK" focusr-dev.apk
+          gh release upload dev focusr-dev.apk --clobber
       - name: Release に APK を加える
         if: inputs.release-tag != ''
         env:

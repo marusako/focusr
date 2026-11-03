@@ -61,7 +61,7 @@
   - Java のパッケージ名（namespace）は変えない。mobile/*.java はそのまま使える（通知のボタンは明示的な Intent なので、2 つ入れてもぶつからない）
   - 識別子が違うと Android は別のアプリとして扱うので、データは自動で別々になる
   - versionName は `<版>-dev`（設定画面の版の表示で開発版だと分かる）
-- 作るのは GitHub Actions：`android-build.yml` に入力 `variant`（`release` か `dev`。既定 `release`）を足す。`android.yml`（main に push・手で動かしたとき）は `dev` で呼び、APK の名前は `focusr-dev-<版>.apk`。release.yml は今までどおり
+- 作るのは GitHub Actions：`android-build.yml` に入力 `variant`（`release` か `dev`。既定 `release`）を足す。`android.yml`（main に push・手で動かしたとき）は `dev` で呼び、APK は下書き（draft）の Release「dev」に `focusr-dev.apk` として上書きで置く（2026-11-03 に変更。Actions の成果物は、公開リポジトリではログインした人なら誰でも取れるため。下書きは書き込める人にしか見えない）。release.yml は今までどおり
 - 書き換えは sed ではなく、テストできる Node のスクリプトでする
 
 #### 外から見える形

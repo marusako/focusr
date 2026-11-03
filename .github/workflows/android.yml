@@ -1,6 +1,6 @@
 name: Android (開発版)
 
-# main に push したとき (画面や部品が変わったとき) と、手で動かしたときに、スマホ版の開発版 APK (focusr-dev-<版>.apk。完成版と並べて入れられる) を作って Actions の成果物として置く。
+# main に push したとき (画面や部品が変わったとき) と、手で動かしたときに、スマホ版の開発版 APK (完成版と並べて入れられる) を作って、下書きの Release「dev」に focusr-dev.apk として置く (開発者だけが取れる)。
 # 手順は android-build.yml にまとめてある。リリースのときは release.yml が variant なし (完成版) で同じ手順を呼び、Release に APK を加える
 on:
   workflow_dispatch:
@@ -15,6 +15,9 @@ on:
       - 'package-lock.json'
       - '.github/workflows/android.yml'
       - '.github/workflows/android-build.yml'
+
+permissions:
+  contents: write # 下書きの Release「dev」の作成と APK のアップロードに必要
 
 jobs:
   build:

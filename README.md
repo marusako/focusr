@@ -114,7 +114,7 @@ npm run dev
 
 表示された `http://127.0.0.1:5173/` を開きます（ポートは環境変数 `PORT` で変えられます）。データ（localStorage・IndexedDB）は `http://127.0.0.1:<ポート>` ごとに別になるので、`PORT` を変えると別のデータになります。
 
-Android の開発版 APK は、GitHub Actions の成果物 `focusr-android-dev` から取れます。完成版と並べて入れられ（名前は「Focusr (開発版)」）、更新の知らせは出ません。
+Android の開発版 APK は、下書き（draft）の Release「dev」の `focusr-dev.apk` から取れます（Releases のページ。下書きはリポジトリに書き込める人にしか見えません）。完成版と並べて入れられ（名前は「Focusr (開発版)」）、更新の知らせは出ません。
 
 ### テスト
 
@@ -165,7 +165,7 @@ node scripts/release-notes.mjs v1.2.0 release-body.md
 
 今の画面（`src`）を [Capacitor](https://capacitorjs.com/) で包んだ Android のアプリです。開発に使うパソコンに Android Studio を入れなくてもよいように、APK は GitHub Actions でビルドします。
 
-- **ビルド**：main に push すると（画面や部品が変わったとき）、`.github/workflows/android.yml` が APK を作り、Actions の成果物（artifact）として置きます。手で動かすこともできます（Actions の画面の「Run workflow」）。リリースのときは、Release にも APK を加えます
+- **ビルド**：main に push すると（画面や部品が変わったとき）、`.github/workflows/android.yml` が開発版の APK を作り、下書きの Release「dev」に置きます。手で動かすこともできます（Actions の画面の「Run workflow」）。リリースのときは、Release にも APK を加えます
 - **`android/` フォルダー**：git には入れず、ビルドのたびに作り直します（`npx cap add android`）
 - **署名**：GitHub の Secrets（`ANDROID_KEYSTORE_BASE64`・`ANDROID_KEYSTORE_PASSWORD`）に入れた固定の鍵で署名します。鍵が同じなので、新しい版を上書きでインストールでき、設定も引き継がれます。鍵をなくすと上書きの更新ができなくなるので、控えは開発者が保管します
 - **版の番号**：versionName は `package.json` の `version`、versionCode は版から作ります（1.2.3 → 210203。版の番号を付け直したときに、前に入れたアプリの上から入れられるよう土台の数を足している。`src/mobile-update.js`）
