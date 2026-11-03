@@ -35,7 +35,18 @@ const release = (tag, assets, extra = {}, repo = 'focusr') => ({
 test('最新の Release に、今より新しい版の APK があれば、その版と Release のページの URL を返す', () => {
   // APK を直接開くと、アプリから開いた簡易版のブラウザーでダウンロードの表示が止まって見えたため、Release のページを開く
   const r = release('v2.10.0', ['latest.yml', 'focusr-Setup-2.10.0.exe', 'focusr-2.10.0.apk']);
-  assert.deepEqual(apkUpdate(r, '2.9.0'), { version: '2.10.0', page: 'https://github.com/marusako/focusr/releases/tag/v2.10.0' });
+  assert.deepEqual(apkUpdate(r, '2.9.0'), {
+    version: '2.10.0',
+    page: 'https://github.com/marusako/focusr/releases/tag/v2.10.0',
+    apk: 'https://github.com/marusako/focusr/releases/download/v2.10.0/focusr-2.10.0.apk',
+  });
+});
+
+test('apk には、focusr-<版>.apk の browser_download_url が入る (ほかのファイルの URL ではない)', () => {
+  const r = release('v2.10.0', ['latest.yml', 'focusr-Setup-2.10.0.exe', 'focusr-2.10.0.apk']);
+  const result = apkUpdate(r, '2.9.0');
+  assert.equal(result.apk, 'https://github.com/marusako/focusr/releases/download/v2.10.0/focusr-2.10.0.apk');
+  assert.notEqual(result.apk, result.page, 'apk は Release のページではなく APK そのものの URL');
 });
 
 test('新しくない・APK がない・下書きや試作版の Release なら null', () => {

@@ -18,7 +18,7 @@ import { blockWindows, appBlockState } from './app-block.js';
 import { webNoticeState } from './web-notice.js';
 import { apkUpdate, isDevAppId } from './mobile-update.js';
 import { TOTAL_ID, ongoingItems, focusStepMs, addFocusTime, addFocusCount, focusOf, dayFocus, forgetMissing, parseFocusLog, focusMinutes } from './focus-log.js';
-import { INITIAL_UPDATE_STATE, nextUpdateState, isBannerVisible } from './update-status.js';
+import { INITIAL_UPDATE_STATE, nextUpdateState, isBannerVisible, updateBannerView } from './update-status.js';
 import { createWheelPicker } from './wheel-picker.js';
 import { WALLPAPER_PRESETS } from './wallpapers.js';
 import { createWebMedia } from './web-media.js';
@@ -84,8 +84,9 @@ const els = {
   appVersion: $('app-version'),
   updateBanner: $('update-banner'),
   updateText: $('update-text'),
-  updateAction: $('update-action'),
-  updateLater: $('update-later'),
+  updateProgress: $('update-progress'),
+  updateProgressBar: $('update-progress-bar'),
+  updateActions: $('update-actions'),
   language: $('language'),
   nextEvent: $('next-event'),
   clock: $('clock'),
@@ -3299,18 +3300,49 @@ function dispatchUpdate(event) {
   renderUpdate();
 }
 
+// ボタンの種類 → 文言の鍵と、目立たない見た目 (ghost) にするか
+const UPDATE_BUTTONS = {
+  update: { label: 'updateNow' },
+  later: { label: 'later', ghost: true },
+  allow: { label: 'updateAllow' },
+  retry: { label: 'updateRetry' },
+  browser: { label: 'updateBrowser', ghost: true },
+};
+
 function renderUpdate() {
-  const visible = isBannerVisible(updateState);
-  els.updateBanner.hidden = !visible;
-  if (!visible) return;
-  els.updateText.textContent = t('updateAvailable', { version: updateState.version });
-  els.updateAction.textContent = t('updateNow');
+  const view = isBannerVisible(updateState) ? updateBannerView(updateState) : null;
+  els.updateBanner.hidden = !view;
+  if (!view) return;
+  els.updateText.textContent = t(view.text, { version: updateState.version, percent: view.percent });
+  els.updateProgress.hidden = view.percent === null;
+  if (view.percent !== null) {
+    els.updateProgress.setAttribute('aria-valuenow', String(view.percent));
+    els.updateProgressBar.style.width = `${view.percent}%`;
+  }
+  // 進み具合が変わるたびにボタンを作り直さないよう、並びが変わったときだけ作り直す (文言は毎回書き直す。言語の切り替えのため)
+  const kinds = view.actions.join(',');
+  if (els.updateActions.dataset.kinds !== kinds) {
+    els.updateActions.dataset.kinds = kinds;
+    els.updateActions.replaceChildren(...view.actions.map((kind) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = UPDATE_BUTTONS[kind].ghost ? 'small ghost' : 'small';
+      button.addEventListener('click', () => onUpdateAction(kind));
+      return button;
+    }));
+  }
+  view.actions.forEach((kind, i) => {
+    els.updateActions.children[i].textContent = t(UPDATE_BUTTONS[kind].label);
+  });
 }
 
 // スマホ版 (Capacitor): 起動したときに GitHub の最新の Release を 1 回だけ見て、新しい版の APK があれば同じバナーで知らせる。
-// 「更新する」でブラウザーに Release のページを開き、そこで APK をダウンロードしてもらう (Play 以外から入れたアプリは、利用者が「インストール」を押す必要がある)
+// 「更新する」で、アプリの中で APK をダウンロードして入れる (mobile/AppUpdate.java)。許可がないとき・失敗したときは、
+// ブラウザーで Release のページを開く形にも切り替えられる (AppUpdate がない古い作りのときは、最初からそうする)
 const mobileApp = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins?.App ?? null : null;
+const appUpdate = mobileApp ? window.Capacitor.Plugins?.AppUpdate ?? null : null;
 let mobileReleasePage = null;
+let mobileApkUrl = null;
 
 async function checkMobileUpdate() {
   try {
@@ -3325,20 +3357,73 @@ async function checkMobileUpdate() {
     const found = apkUpdate(await response.json(), version);
     if (!found) return;
     mobileReleasePage = found.page;
+    mobileApkUrl = found.apk;
     dispatchUpdate({ type: 'available', version: found.version });
   } catch {
     // オフラインなどで確かめられなかったときは、知らせない
   }
 }
 
+function openReleasePage() {
+  // アプリの外の URL は、Capacitor がブラウザーで開く
+  if (mobileReleasePage) location.href = mobileReleasePage;
+  dispatchUpdate({ type: 'dismiss' });
+}
+
+// 更新の流れ (許可の確認 → ダウンロード → インストール) が動いている間は true。二重押しで流れを重ねないための印
+let updateRunning = false;
+
+// 許可を確かめ → ダウンロード → インストール。どこかで失敗したら failed にする
+async function startUpdate() {
+  if (!appUpdate || !mobileApkUrl) return openReleasePage();
+  if (updateRunning) return;
+  updateRunning = true;
+  try {
+    // 許可の確認を待つ間にボタンが残って二重に押されないよう、先に「ダウンロード中」にする (許可がなければ下で needsPermission に変える)
+    dispatchUpdate({ type: 'download' });
+    const { allowed } = await appUpdate.canInstall();
+    if (!allowed) return dispatchUpdate({ type: 'needsPermission' });
+    await appUpdate.download({ url: mobileApkUrl });
+    dispatchUpdate({ type: 'install' });
+    await appUpdate.install();
+  } catch {
+    dispatchUpdate({ type: 'fail' });
+  } finally {
+    updateRunning = false;
+  }
+}
+
+function onUpdateAction(kind) {
+  if (kind === 'update') startUpdate();
+  else if (kind === 'allow') appUpdate.openInstallSettings().catch(() => dispatchUpdate({ type: 'fail' }));
+  else if (kind === 'retry') {
+    if (updateRunning) return;
+    dispatchUpdate({ type: 'retry' });
+    startUpdate();
+  } else if (kind === 'browser') openReleasePage();
+  else dispatchUpdate({ type: 'dismiss' });
+}
+
 if (mobileApp) {
-  els.updateAction.addEventListener('click', () => {
-    // アプリの外の URL は、Capacitor がブラウザーで開く
-    if (mobileReleasePage) location.href = mobileReleasePage;
-    dispatchUpdate({ type: 'dismiss' });
-  });
-  els.updateLater.addEventListener('click', () => dispatchUpdate({ type: 'dismiss' }));
   checkMobileUpdate();
+  if (appUpdate) {
+    appUpdate.addListener('updateProgress', ({ received, total }) => {
+      if (total > 0) dispatchUpdate({ type: 'progress', progress: received / total });
+    });
+    // インストールが失敗・取り消された (成功したときはアプリが入れ替わるので、知らせは来ない)
+    appUpdate.addListener('updateResult', ({ ok }) => {
+      if (!ok) dispatchUpdate({ type: 'fail' });
+    });
+    // 設定で許可して戻ってきたら、許可されていれば自動で更新を始める
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState !== 'visible' || updateState.phase !== 'needsPermission') return;
+      try {
+        if ((await appUpdate.canInstall()).allowed) startUpdate();
+      } catch {
+        // 確かめられなければ、そのままボタンを残す
+      }
+    });
+  }
   // Android の「戻る」(画面端のスワイプ・戻るボタン): Esc と同じく、開いているものを手前から 1 つずつ閉じる。
   // 閉じるものがなければ、アプリを終わらせずに裏に回す (タイマーの通知は予約したまま)
   mobileApp.addListener('backButton', () => {

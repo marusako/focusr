@@ -1,7 +1,8 @@
 // スマホ版 (Capacitor) の更新のお知らせの決まりごと (画面 (DOM) に依存しない純粋な関数)。
 // APK は、GitHub Release に focusr-<版>.apk として置く (.github/workflows/android-build.yml)。
 // スマホ版は起動したときに最新の Release を見て、今より新しい版の APK があれば知らせる。
-// Play 以外から入れたアプリは黙って入れ替えられないので、ダウンロードを開いて、利用者に「インストール」を押してもらう
+// アプリの中で APK をダウンロードして Android のインストールの仕組みに渡す (mobile/AppUpdate.java)。
+// 使えないとき・失敗したときは、ブラウザーで Release のページを開いて、利用者に入れてもらう
 const VERSION = /^v?(\d+)\.(\d+)\.(\d+)$/;
 // 2026-11-03 に、リポジトリの名前とアプリの識別子も focusr にそろえた。識別子が変わったので、このコードのアプリは
 // 以前の名前 (kugiri-timer) の Release を見ることがなく、以前の名前は受け付けない
@@ -41,8 +42,9 @@ export function isDevAppId(appId) {
   return typeof appId === 'string' && appId.endsWith('.dev');
 }
 
-// GitHub の最新の Release (API の答え) に、今より新しい版の APK があれば { version, page: Release のページの URL }。なければ null。
-// APK を直接開くと、アプリから開いた簡易版のブラウザー (Custom Tab) で、ダウンロードの表示が終わっても変わらなかったので、
+// GitHub の最新の Release (API の答え) に、今より新しい版の APK があれば { version, page: Release のページの URL, apk: APK の URL }。なければ null。
+// apk は、アプリの中でダウンロードするときに使う。ダウンロードに失敗したときは、page をブラウザーで開く。
+// APK を直接ブラウザーで開くと、アプリから開いた簡易版のブラウザー (Custom Tab) で、ダウンロードの表示が終わっても変わらなかったので、
 // Release のページを開いて、そこで APK を押してもらう
 export function apkUpdate(release, currentVersion) {
   if (!release || release.draft || release.prerelease || !Array.isArray(release.assets)) return null;
@@ -52,7 +54,7 @@ export function apkUpdate(release, currentVersion) {
   for (const asset of release.assets) {
     const match = APK_NAME.exec(String(asset?.name ?? ''));
     const url = String(asset?.browser_download_url ?? '');
-    if (match && fromRepository(url, 'download') && isNewerVersion(match[1], currentVersion)) return { version: match[1], page };
+    if (match && fromRepository(url, 'download') && isNewerVersion(match[1], currentVersion)) return { version: match[1], page, apk: url };
   }
   return null;
 }

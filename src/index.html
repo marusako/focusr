@@ -25,10 +25,9 @@
 
   <div class="update-banner" id="update-banner" role="status" hidden>
     <span id="update-text"></span>
-    <span class="update-actions">
-      <button type="button" id="update-action" class="small"></button>
-      <button type="button" id="update-later" class="small ghost" data-i18n="later"></button>
-    </span>
+    <!-- ダウンロード中の進み具合 -->
+    <div class="update-progress" id="update-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" hidden><div id="update-progress-bar"></div></div>
+    <span class="update-actions" id="update-actions"></span>
   </div>
 
   <!-- スマホ版で壁紙を選んでいるときだけ出す、上の帯のあたりのすりガラス (下へいくほど消える)。

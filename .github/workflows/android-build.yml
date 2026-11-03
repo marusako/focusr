@@ -54,7 +54,7 @@ jobs:
           npx cap add android
           npx cap sync android
           if [ "$VARIANT" = dev ]; then node scripts/android-variant.mjs dev android; fi
-      - name: このアプリの Java (mobile/。画面・URL を暗号化する部品・ロック画面のタイマーと曲の部品・作業中のアプリの制限の部品) を入れる
+      - name: このアプリの Java (mobile/。画面・URL を暗号化する部品・ロック画面のタイマーと曲の部品・作業中のアプリの制限の部品・アプリの中からの更新の部品) を入れる
         run: |
           DIR=android/app/src/main/java/io/github/marusako/focusr
           [ -f "$DIR/MainActivity.java" ] || { echo "::error::Capacitor の MainActivity が見つからない ($DIR)"; exit 1; }
@@ -96,6 +96,18 @@ jobs:
           grep -q 'PACKAGE_USAGE_STATS' "$M" || { echo "::error::作業中のアプリの制限の権限を AndroidManifest.xml に足せなかった"; exit 1; }
           grep -q '<queries>' "$M" || { echo "::error::queries を AndroidManifest.xml に足せなかった"; exit 1; }
           grep -nE 'xmlns:tools|AppBlockService|SPECIAL_USE|PACKAGE_USAGE_STATS|SYSTEM_ALERT_WINDOW|queries' "$M"
+      - name: アプリの中からの更新の部品 (mobile/AppUpdate.java) の受け取り口と権限を足す
+        # REQUEST_INSTALL_PACKAGES は「不明なアプリのインストール」を使うのに要る。UPDATE_PACKAGES_WITHOUT_USER_ACTION は、
+        # Android 12 以降で、前回の更新をこのアプリが入れていれば確認の画面なしで入れ替えるための権限。
+        # 受け取り口 (receiver) は、インストールの結果を受け取る (外から呼べない)
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#</application>#    <receiver android:name=".AppUpdateReceiver" android:exported="false" />\n    </application>#' "$M"
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />\n</manifest>#' "$M"
+          grep -q 'AppUpdateReceiver' "$M" || { echo "::error::AppUpdateReceiver を AndroidManifest.xml に足せなかった"; exit 1; }
+          grep -q 'REQUEST_INSTALL_PACKAGES' "$M" || { echo "::error::REQUEST_INSTALL_PACKAGES を AndroidManifest.xml に足せなかった"; exit 1; }
+          grep -q 'UPDATE_PACKAGES_WITHOUT_USER_ACTION' "$M" || { echo "::error::UPDATE_PACKAGES_WITHOUT_USER_ACTION を AndroidManifest.xml に足せなかった"; exit 1; }
+          grep -nE 'AppUpdateReceiver|REQUEST_INSTALL_PACKAGES|UPDATE_PACKAGES_WITHOUT_USER_ACTION' "$M"
       - name: 版の番号を入れる (versionName は package.json の version、versionCode は版から作る。src/mobile-update.js)
         run: |
           VERSION=$(node -p "require('./package.json').version")
