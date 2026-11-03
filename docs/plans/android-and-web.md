@@ -37,17 +37,49 @@
 ## 段階 2：開発の仕組み
 
 ### ブラウザーの開発版
-- `npm run dev`：`src` を `http://localhost:5173/` で配る小さなサーバー（`scripts/dev-server.mjs`。Node の標準の機能だけで作り、依存を増やさない）。開くとすぐ使える
-- データはブラウザーの localStorage・IndexedDB にしまう（Web 版と同じ。localhost なので、公開の Web 版とは混ざらない）
+- `npm run dev`：`src` を `http://127.0.0.1:5173/` で配る小さなサーバー（`scripts/dev-server.mjs`。Node の標準の機能だけで作り、依存を増やさない）。開くとすぐ使える
+- ポートは環境変数 `PORT` で変えられる（既定 5173）。外から見えないよう `127.0.0.1` だけで待つ。起動したら、開く URL を 1 行出す
+- データはブラウザーの localStorage・IndexedDB にしまう（Web 版と同じ。オリジン（http://127.0.0.1:<ポート>）ごとに別なので、公開の Web 版とは混ざらず、開発サーバーのポートを変えても別のデータになる）
+
+#### 外から見える形（`scripts/dev-server.mjs` が export する）
+- `resolveRequestPath(root, urlPath)` → 配るファイルの絶対パス、または `null`
+  - `?` や `#` のあとは捨てる。`%E3%81%82` などの URL の符号は戻す（戻せない文字列なら `null`）
+  - `/` で終わるときは、その下の `index.html`
+  - `root` の外に出るパス（`/../package.json`、`/%2e%2e/x` など）は `null`
+- `contentTypeFor(filePath)` → Content-Type。拡張子で決める（大文字も同じに扱う）
+  - `.html` → `text/html; charset=utf-8`、`.js`・`.mjs` → `text/javascript; charset=utf-8`、`.css` → `text/css; charset=utf-8`、`.json` → `application/json; charset=utf-8`、`.svg` → `image/svg+xml`、`.png` → `image/png`、`.jpg`・`.jpeg` → `image/jpeg`、`.webp` → `image/webp`、`.woff2` → `font/woff2`、`.mp3` → `audio/mpeg`、`.ogg` → `audio/ogg`、`.wav` → `audio/wav`、`.ico` → `image/x-icon`
+  - それ以外 → `application/octet-stream`
+- `createDevServer({ root })` → Node の `http.Server`（まだ listen していない）
+  - GET・HEAD：ファイルがあれば 200 と中身（HEAD は中身なし）。Content-Type は `contentTypeFor`。`Cache-Control: no-store`（直したらすぐ見えるように）
+  - ファイルがない・`root` の外・フォルダーで `index.html` がない → 404
+  - GET・HEAD 以外 → 405
+- 直接実行したとき（`node scripts/dev-server.mjs`）だけ、`src` を root にして listen する。import しただけでは listen しない
+- `package.json` の scripts に `"dev": "node scripts/dev-server.mjs"` を足す
 
 ### Android の開発版 APK
-- 完成版と並べて入れられるよう、識別子（appId）を `io.github.marusako.kugiritimer.dev`、名前を「Focusr (開発版)」にした APK を作る
-- 作るのは GitHub Actions（今の `android.yml` を開発版用にする。main に push したときと、手で動かしたとき）。できた APK は Actions の Artifact から取る
-- 開発版は、更新の知らせ（GitHub の Release を見る仕組み）を出さない
+- 完成版と並べて入れられるよう、識別子（applicationId）を `io.github.marusako.kugiritimer.dev`、名前を「Focusr (開発版)」にした APK を作る
+  - Java のパッケージ名（namespace）は変えない。mobile/*.java はそのまま使える（通知のボタンは明示的な Intent なので、2 つ入れてもぶつからない）
+  - 識別子が違うと Android は別のアプリとして扱うので、データは自動で別々になる
+  - versionName は `<版>-dev`（設定画面の版の表示で開発版だと分かる）
+- 作るのは GitHub Actions：`android-build.yml` に入力 `variant`（`release` か `dev`。既定 `release`）を足す。`android.yml`（main に push・手で動かしたとき）は `dev` で呼び、APK の名前は `focusr-dev-<版>.apk`。release.yml は今までどおり
+- 書き換えは sed ではなく、テストできる Node のスクリプトでする
+
+#### 外から見える形
+- `scripts/android-variant.mjs` が export する `applyDevVariant({ gradle, strings })` → `{ gradle, strings }`
+  - `gradle`（android/app/build.gradle の中身）の `applicationId "X"` を `applicationId "X.dev"` にする。`namespace` の行は変えない
+  - `strings`（res/values/strings.xml の中身）の `app_name` と `title_activity_main` の値を `Focusr (開発版)` にする
+  - 書き換える場所が見つからない・すでに `.dev` になっているときは Error を投げる（ビルドを止めて気づけるように）
+- 直接実行したとき（`node scripts/android-variant.mjs dev <android のフォルダー>`）だけ、2 つのファイルを読み、書き換えて保存する
+- `src/mobile-update.js` に `isDevAppId(appId)` を足す：`.dev` で終わる識別子なら true。renderer.js は `mobileApp.getInfo()` の `id` がこれに当たるとき、更新の確認（GitHub の Release を見る）をしない。版の表示はする
 
 ### 受け入れ条件
-1. `npm run dev` で開き、すべての画面が動く
-2. 開発版 APK と完成版 APK を、同じ端末に同時に入れられる。データは別々
+1. `npm test` が通る（終了コード 0）。上の 3 つの関数と、サーバーを port 0 で実際に listen して fetch で確かめるテストがある（200・404・405・HEAD・`root` の外・Content-Type・Cache-Control）
+2. `npm run dev` で開き、すべての画面が動く（本体がブラウザーで確かめる）
+3. 開発版 APK と完成版 APK を、同じ端末に同時に入れられる。データは別々（APK は push 後に Actions で作られる。端末での確認は開発者）
+4. 開発版で、更新のバナーが出ない
+
+### テストのコマンド
+`npm test`（終了コード 0 で合格）。新しいテストは `test/dev-server.test.js`・`test/android-variant.test.js`、`test/mobile-update.test.js` に `isDevAppId` を足す。`test/syntax.test.js` の一覧に `scripts/*.mjs` を加える
 
 ## 段階 3：Web 版（GitHub Pages）
 

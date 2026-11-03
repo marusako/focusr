@@ -63,3 +63,14 @@ test('以前のリポジトリの名前 (kugiri-timer) と、以前の APK の�
   assert.equal(apkUpdate(release('v2.10.0', ['kugiri-timer-2.10.0.apk']), '2.9.0').version, '2.10.0', '新しいリポジトリに、以前の名前の APK');
   assert.equal(apkUpdate(release('v2.10.0', ['other-2.10.0.apk']), '2.9.0'), null, 'ほかの名前の APK は受け付けない');
 });
+
+import { isDevAppId } from '../src/mobile-update.js';
+
+test('開発版の識別子: .dev で終わるときだけ true', () => {
+  assert.equal(isDevAppId('io.github.marusako.kugiritimer.dev'), true);
+  assert.equal(isDevAppId('io.github.marusako.kugiritimer'), false, '完成版は false');
+  assert.equal(isDevAppId('io.github.marusako.kugiritimer.devtools'), false, '.dev で終わらないものは false');
+  assert.equal(isDevAppId('dev'), false, '区切りの . がないものは false');
+  assert.equal(isDevAppId(''), false);
+  assert.equal(isDevAppId(undefined), false, '識別子がなくても投げない');
+});

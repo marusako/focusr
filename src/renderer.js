@@ -14,7 +14,7 @@ import { RANGES, parseSettings, effectiveVolume, resetSoundSettings } from './se
 import { periodDays, shiftAnchor, periodFocus, axisTicks } from './focus-stats.js';
 import { TIMER_NOTICE_COUNT, timerNoticePlan, reconcileNotices } from './mobile-notice.js';
 import { timerSegments, idleTimer } from './lock-screen.js';
-import { apkUpdate } from './mobile-update.js';
+import { apkUpdate, isDevAppId } from './mobile-update.js';
 import { TOTAL_ID, ongoingItems, focusStepMs, addFocusTime, addFocusCount, focusOf, dayFocus, forgetMissing, parseFocusLog, focusMinutes } from './focus-log.js';
 import { INITIAL_UPDATE_STATE, nextUpdateState, isBannerVisible } from './update-status.js';
 import { createWheelPicker } from './wheel-picker.js';
@@ -3151,10 +3151,12 @@ let mobileReleasePage = null;
 
 async function checkMobileUpdate() {
   try {
-    const { version } = await mobileApp.getInfo();
+    const { version, id } = await mobileApp.getInfo();
     appVersion = version;
     els.appVersion.textContent = t('version', { version });
     els.appVersion.hidden = false;
+    // 開発版 (識別子が .dev) は、完成版の Release と比べても意味がないので、更新の確認をしない
+    if (isDevAppId(id)) return;
     const response = await fetch('https://api.github.com/repos/marusako/kugiri-timer/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
     if (!response.ok) return;
     const found = apkUpdate(await response.json(), version);

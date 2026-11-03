@@ -36,6 +36,11 @@ export function versionCode(version) {
   return VERSION_CODE_BASE + parts[0] * 10000 + parts[1] * 100 + parts[2];
 }
 
+// 開発版 APK (識別子が .dev で終わる。scripts/android-variant.mjs) か。開発版は更新のお知らせを出さない
+export function isDevAppId(appId) {
+  return typeof appId === 'string' && appId.endsWith('.dev');
+}
+
 // GitHub の最新の Release (API の答え) に、今より新しい版の APK があれば { version, page: Release のページの URL }。なければ null。
 // APK を直接開くと、アプリから開いた簡易版のブラウザー (Custom Tab) で、ダウンロードの表示が終わっても変わらなかったので、
 // Release のページを開いて、そこで APK を押してもらう

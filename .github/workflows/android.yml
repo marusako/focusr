@@ -1,7 +1,7 @@
-name: Android (prototype)
+name: Android (開発版)
 
-# main に push したとき (画面や部品が変わったとき) と、手で動かしたときに、スマホ版の APK を作って Actions の成果物として置く。
-# 手順は android-build.yml にまとめてある。リリースのときは release.yml が同じ手順を呼び、Release に APK を加える
+# main に push したとき (画面や部品が変わったとき) と、手で動かしたときに、スマホ版の開発版 APK (focusr-dev-<版>.apk。完成版と並べて入れられる) を作って Actions の成果物として置く。
+# 手順は android-build.yml にまとめてある。リリースのときは release.yml が variant なし (完成版) で同じ手順を呼び、Release に APK を加える
 on:
   workflow_dispatch:
   push:
@@ -10,6 +10,7 @@ on:
       - 'src/**'
       - 'capacitor.config.json'
       - 'mobile/**'
+      - 'scripts/android-variant.mjs'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/android.yml'
@@ -18,4 +19,6 @@ on:
 jobs:
   build:
     uses: ./.github/workflows/android-build.yml
+    with:
+      variant: dev
     secrets: inherit

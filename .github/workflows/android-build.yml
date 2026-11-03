@@ -3,10 +3,15 @@ name: Android build
 # スマホ版 (Capacitor) の APK を作る、ほかのワークフローから呼び出して使う手順 (android.yml と release.yml から呼ぶ)。
 # 開発に使うパソコンには Android Studio を入れられないので、GitHub のサーバー (Android SDK が最初から入っている) でビルドする。
 # android/ フォルダーは git に入れず、ここで毎回作り直す。署名には、Secrets に入れた固定の鍵を使う (なければ失敗する)。
+# variant が dev のときは、完成版と並べて入れられる開発版 (識別子の末尾が .dev、名前は「Focusr (開発版)」、APK は focusr-dev-<版>.apk) にする。
 # release-tag を渡したときは、その Release に focusr-<版>.apk として加える (スマホ版が更新を知らせるのに使う)。
 on:
   workflow_call:
     inputs:
+      variant:
+        description: '作る APK の種類 (release: 完成版、dev: 開発版)'
+        type: string
+        default: release
       release-tag:
         description: APK を加える Release のタグ (空なら Actions の成果物として置くだけ)
         type: string
@@ -16,6 +21,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: variant と release-tag の組み合わせを確かめる
+        env:
+          VARIANT: ${{ inputs.variant }}
+          TAG: ${{ inputs.release-tag }}
+        run: |
+          case "$VARIANT" in
+            release|dev) ;;
+            *) echo "::error::variant は release か dev ($VARIANT)"; exit 1 ;;
+          esac
+          if [ "$VARIANT" = dev ] && [ -n "$TAG" ]; then
+            echo "::error::開発版は Release に加えられない (release-tag: $TAG)"
+            exit 1
+          fi
+          echo "VARIANT=$VARIANT" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
@@ -32,6 +51,7 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+          if [ "$VARIANT" = dev ]; then node scripts/android-variant.mjs dev android; fi
       - name: このアプリの Java (mobile/。画面・URL を暗号化する部品・ロック画面のタイマーと曲の部品) を入れる
         run: |
           DIR=android/app/src/main/java/io/github/marusako/kugiritimer
@@ -65,8 +85,18 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           CODE=$(node --input-type=module -e "import { versionCode } from './src/mobile-update.js'; console.log(versionCode('$VERSION'))")
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          sed -i "s/versionCode 1\$/versionCode $CODE/; s/versionName \"1.0\"/versionName \"$VERSION\"/" android/app/build.gradle
-          grep -q "versionCode $CODE" android/app/build.gradle || { echo "::error::versionCode を書き換えられなかった"; exit 1; }
+          NAME="$VERSION"
+          APK="focusr-$VERSION.apk"
+          if [ "$VARIANT" = dev ]; then
+            NAME="$VERSION-dev"
+            APK="focusr-dev-$VERSION.apk"
+          fi
+          echo "APK=$APK" >> "$GITHUB_ENV"
+          sed -i "s/versionCode 1\$/versionCode $CODE/; s/versionName \"1.0\"/versionName \"$NAME\"/" android/app/build.gradle
+          if ! grep -q "versionCode $CODE" android/app/build.gradle; then
+            echo "::error::versionCode を書き換えられなかった"
+            exit 1
+          fi
           grep -nE 'versionCode|versionName' android/app/build.gradle
       - name: APK をビルドする (署名はこのあとで行う)
         working-directory: android
@@ -89,13 +119,13 @@ jobs:
             || fail "鍵を開けない (大きさ $(wc -c < "$RUNNER_TEMP/release.p12") バイト、SHA-256 の先頭 $(sha256sum "$RUNNER_TEMP/release.p12" | cut -c1-16)、パスワード $(printf '%s' "$KEYSTORE_PASSWORD" | wc -c) 文字)" "$out"
           TOOLS="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
           out=$("$TOOLS/zipalign" -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/aligned.apk" 2>&1) || fail "zipalign ($TOOLS)" "$out"
-          out=$("$TOOLS/apksigner" sign --ks "$RUNNER_TEMP/release.p12" --ks-type PKCS12 --ks-pass env:KEYSTORE_PASSWORD --out "focusr-$VERSION.apk" "$RUNNER_TEMP/aligned.apk" 2>&1) || fail "apksigner sign" "$out"
+          out=$("$TOOLS/apksigner" sign --ks "$RUNNER_TEMP/release.p12" --ks-type PKCS12 --ks-pass env:KEYSTORE_PASSWORD --out "$APK" "$RUNNER_TEMP/aligned.apk" 2>&1) || fail "apksigner sign" "$out"
           rm -f "$RUNNER_TEMP/release.p12"
-          out=$("$TOOLS/apksigner" verify --print-certs "focusr-$VERSION.apk" 2>&1) || fail "apksigner verify" "$out"
+          out=$("$TOOLS/apksigner" verify --print-certs "$APK" 2>&1) || fail "apksigner verify" "$out"
           printf '%s\n' "$out" | grep -E 'certificate (DN|SHA-256)' || true
       - uses: actions/upload-artifact@v7
         with:
-          name: focusr-android
+          name: ${{ inputs.variant == 'dev' && 'focusr-android-dev' || 'focusr-android' }}
           path: focusr-*.apk
           retention-days: 14
       - name: Release に APK を加える

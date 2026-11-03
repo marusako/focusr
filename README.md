@@ -109,10 +109,12 @@ npm install
 開発中の画面は、`src` をそのまま配ってブラウザーで開いて確かめます（ES モジュールを使うので、ファイルを直接開くのではなく、小さなサーバーを通します）。例：
 
 ```bash
-python3 -m http.server 5173 --directory src
+npm run dev
 ```
 
-`http://localhost:5173/` を開きます（専用のコマンド `npm run dev` を足す予定です。`docs/plans/android-and-web.md`）。
+表示された `http://127.0.0.1:5173/` を開きます（ポートは環境変数 `PORT` で変えられます）。データ（localStorage・IndexedDB）は `http://127.0.0.1:<ポート>` ごとに別になるので、`PORT` を変えると別のデータになります。
+
+Android の開発版 APK は、GitHub Actions の成果物 `focusr-android-dev` から取れます。完成版と並べて入れられ（名前は「Focusr (開発版)」）、更新の知らせは出ません。
 
 ### テスト
 

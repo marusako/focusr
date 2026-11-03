@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 
 const files = [
-  'scripts/release-notes.mjs',
+  ...readdirSync('scripts').filter((f) => f.endsWith('.mjs')).map((f) => `scripts/${f}`),
   ...readdirSync('src').filter((f) => f.endsWith('.js')).map((f) => `src/${f}`),
 ];
 
