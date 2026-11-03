@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DATA_KEYS, FILE_VERSION, MAX_VALUE_LENGTH, isStorableValue, pickData, serializeData, parseDataFile, backupFileName } from '../src/data-file.js';
 
-test('保存する項目は、設定・予定・時間割・集中の記録。以前の版の今日の回数 (stats) は読まない', () => {
-  assert.deepEqual(DATA_KEYS, ['settings', 'events', 'timetable', 'focusLog']);
+test('保存する項目は、設定・予定・時間割・集中の記録・xp。以前の版の今日の回数 (stats) は読まない', () => {
+  assert.deepEqual(DATA_KEYS, ['settings', 'events', 'timetable', 'focusLog', 'xp']);
+  assert.equal(isStorableValue('xp', { ms: 60000 }), true);
   assert.equal(isStorableValue('stats', { count: 1 }), false);
 });
 

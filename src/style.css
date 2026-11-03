@@ -150,6 +150,23 @@ h2, h3 { margin: 0; font-weight: 600; }
 .app.flip-out { transform: perspective(900px) rotateY(90deg); transition: transform 0.18s ease-in; }
 .app.flip-in { animation: card-flip-in 0.18s ease-out; }
 @keyframes card-flip-in { from { transform: perspective(900px) rotateY(-90deg); } to { transform: perspective(900px) rotateY(0); } }
+.sw-toggle {
+  position: absolute;
+  top: calc(8 * var(--u));
+  left: calc(8 * var(--u));
+  width: calc(32 * var(--u));
+  height: calc(32 * var(--u));
+  padding: calc(6 * var(--u));
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+}
+.sw-toggle:hover { color: var(--text); background: var(--surface); }
+.sw-toggle svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* ストップウォッチを見ているときは、角の色をモードの色にして、切り替わっていることが分かるようにする */
+.stopwatch-view .sw-toggle { color: var(--accent); }
+/* ストップウォッチには、モードの切り替えもスキップもない (場所は空けておき、押したときに画面が動かないようにする) */
+.stopwatch-view .modes, .stopwatch-view #skip { visibility: hidden; }
 .card-flip {
   position: absolute;
   top: calc(8 * var(--u));
@@ -1133,6 +1150,31 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible), select:focus:
 
 /* 今の時刻 (残り時間の下に小さく): 文字色 (ライトなら黒、ダークなら白) を 85% の濃さで。少し太くして読みやすくする */
 .clock { margin-top: calc(4 * var(--u)); font-size: calc(15 * var(--u)); font-weight: 600; color: color-mix(in srgb, var(--text) 85%, transparent); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+
+/* レベル (円の中の、残り時間の上): 「Lv N」の文字と、称号と、次のレベルまでの細い進みのバー */
+.level { grid-row: 1; align-self: end; display: grid; justify-items: center; gap: calc(3 * var(--u)); margin-bottom: calc(8 * var(--u)); font-size: calc(12 * var(--u)); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.level-track { width: calc(64 * var(--u)); height: calc(3 * var(--u)); border-radius: calc(2 * var(--u)); background: color-mix(in srgb, var(--text) 15%, transparent); overflow: hidden; }
+.level-bar { height: 100%; width: 0; border-radius: inherit; background: var(--accent); }
+/* 称号。バッジは色つきの図形で作ってある。絵に差し替えるときは .title-badge の中身だけを入れ替えればよい */
+.title { display: inline-flex; align-items: center; gap: calc(4 * var(--u)); max-width: calc(170 * var(--u)); font-size: calc(11 * var(--u)); font-weight: 600; }
+/* 長い名前 (言語によっては長い) は、円からはみ出さないよう、最大の幅で「…」と省略する */
+#title-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.title[hidden] { display: none; }
+.title-badge { flex: none; width: calc(10 * var(--u)); height: calc(10 * var(--u)); border-radius: 30%; transform: rotate(45deg); background: hsl(215 70% 55%); }
+/* 段階 (0〜12) が上がるにつれて、青から紫へ変える */
+.title-badge[data-tier="0"] { background: hsl(215 70% 55%); }
+.title-badge[data-tier="1"] { background: hsl(222 70% 55%); }
+.title-badge[data-tier="2"] { background: hsl(229 70% 55%); }
+.title-badge[data-tier="3"] { background: hsl(236 70% 55%); }
+.title-badge[data-tier="4"] { background: hsl(243 70% 55%); }
+.title-badge[data-tier="5"] { background: hsl(250 70% 55%); }
+.title-badge[data-tier="6"] { background: hsl(257 70% 55%); }
+.title-badge[data-tier="7"] { background: hsl(264 70% 55%); }
+.title-badge[data-tier="8"] { background: hsl(271 70% 55%); }
+.title-badge[data-tier="9"] { background: hsl(278 70% 55%); }
+.title-badge[data-tier="10"] { background: hsl(285 70% 55%); }
+.title-badge[data-tier="11"] { background: hsl(292 70% 55%); }
+.title-badge[data-tier="12"] { background: hsl(299 70% 55%); }
 
 /* ---- ボタンの輪郭: 文字と同じ色の細い線 (1.5px) で、ボタンの形を分かりやすくする ----
    線はボタンの内側に描く (box-shadow の inset) ので、大きさや並びは変わらない。

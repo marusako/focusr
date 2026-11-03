@@ -57,6 +57,10 @@
   </div>
 
   <main class="app">
+    <!-- タイマーとストップウォッチを切り替えるボタン (カードの左上。上向きの矢印は「数え上げ」)。名前 (aria-label) は renderer.js が切り替える -->
+    <button type="button" class="sw-toggle" id="sw-toggle">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17zM12 16.5v-9M8.25 11.25 12 7.5l3.75 3.75"/></svg>
+    </button>
     <!-- ラウンドの間だけ出す、めくれた角のボタン。押すと、ラウンドのタイマー (表) と通常のタイマー (裏) が入れ替わる。
          カードの左右の端を押してもめくれる。名前 (aria-label) は renderer.js が表か裏かで切り替える -->
     <button type="button" class="card-flip" id="card-flip" hidden>
@@ -74,6 +78,16 @@
         <circle class="progress" id="progress" cx="100" cy="100" r="90"></circle>
       </svg>
       <div class="readout">
+        <!-- レベル (Lv N と、次のレベルまでの進み)。円の中の、時間の上に置く。renderer.js の renderLevel -->
+        <div class="level">
+          <span id="level"></span>
+          <!-- 称号 (名前とバッジ)。Lv0 のあいだは隠す。バッジは .title-badge だけを絵に差し替えられる -->
+          <span class="title" id="title" hidden>
+            <span class="title-badge" id="title-badge"></span>
+            <span id="title-name"></span>
+          </span>
+          <div class="level-track"><div class="level-bar" id="level-bar"></div></div>
+        </div>
         <div class="time" id="time">25:00</div>
         <!-- 残り時間は円の真ん中に置き、モードと今の時刻はその少し下にまとめる -->
         <div class="readout-sub">

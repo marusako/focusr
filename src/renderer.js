@@ -38,6 +38,9 @@ import {
 } from './playlist.js';
 import { BgmPlayer, playAlarm, playClick } from './sound.js';
 import { roundStatus, roundFocusMs, statusKey, komaFinished } from './round-timer.js';
+import { createStopwatch, startStopwatch, pauseStopwatch, resetStopwatch, elapsedMs, stopwatchRatio, formatStopwatch, stopwatchFocusMs } from './stopwatch.js';
+import { addXpMs, levelInfo, parseXp } from './level.js';
+import { titleFor } from './titles.js';
 import { flipFace, settleFace, showsRoundTimer, isEdgePress } from './card-face.js';
 import { systemBarStyle } from './system-bars.js';
 import { swipeDirection, inSystemGestureZone } from './swipe.js';
@@ -55,6 +58,12 @@ const els = {
   wallpaper: $('wallpaper'),
   app: document.querySelector('.app'),
   cardFlip: $('card-flip'),
+  swToggle: $('sw-toggle'),
+  level: $('level'),
+  levelBar: $('level-bar'),
+  title: $('title'),
+  titleBadge: $('title-badge'),
+  titleName: $('title-name'),
   time: $('time'),
   label: $('label'),
   progress: $('progress'),
@@ -151,9 +160,15 @@ let external = { feeds: [], events: [], allDay: [], available: false };
 const planEvents = () => events.concat(external.events);
 // 予定ごとの集中の記録 (focus-log.js)。3 か月より古い日は、読むときに忘れる
 let focusLog = parseFocusLog(load('focusLog', {}), Date.now());
+// レベル用の累計の作業時間 (level.js)。集中の記録に足す時間と同じものを足し、同じ保存のタイミングで保存する
+let xp = parseXp(load('xp', null));
 let state = createState(settings);
 // 今のラウンドの様子 (round-timer.js)。ラウンドの間は、カードにラウンドのタイマーを出し、時計に合わせて自動で進める
 let roundNow = roundStatus(rounds, Date.now());
+// ストップウォッチ (stopwatch.js)。カードに出しているのがタイマーかストップウォッチかは view で決める。
+// ストップウォッチは、表示をタイマーに戻しても動き続ける。どちらもアプリを閉じると忘れる
+let stopwatch = createStopwatch();
+let view = 'timer'; // 'timer' | 'stopwatch'
 
 // 取り込んだ壁紙・BGM の一覧 ({ file: 保存名, name: 元のファイル名 })。取り込みの仕組みがない環境では空のまま
 const media = { wallpapers: [], bgm: [] };
@@ -357,6 +372,7 @@ if (mobileNotifications) mobileNotifications.requestPermissions();
 function render() {
   const now = Date.now();
   const timerLike = renderTimer(now);
+  renderLevel();
 
   // 作業が始まった・休憩が始まった・作業中にタイマーを止めた、をノイズに反映する
   if (timerLike !== lastTimerState) {
@@ -386,15 +402,20 @@ let cardFace = 'round';
 function renderTimer(now) {
   const inRound = roundNow !== null;
   cardFace = settleFace(cardFace, inRound);
-  const roundShown = showsRoundTimer(cardFace, inRound);
+  const swShown = view === 'stopwatch';
+  const roundShown = !swShown && showsRoundTimer(cardFace, inRound);
+  document.documentElement.classList.toggle('stopwatch-view', swShown);
   document.documentElement.classList.toggle('in-round', inRound);
   document.documentElement.classList.toggle('round-face', roundShown);
   for (const button of [els.toggle, els.reset, els.skip, els.openTimer]) button.disabled = roundShown;
-  els.cardFlip.hidden = !inRound;
+  els.cardFlip.hidden = !inRound || swShown;
+  const swLabel = t(swShown ? 'stopwatchOff' : 'stopwatchOn');
+  els.swToggle.setAttribute('aria-label', swLabel);
+  els.swToggle.title = swLabel;
   const flipLabel = t(cardFace === 'round' ? 'cardFlipToTimer' : 'cardFlipToRound');
   els.cardFlip.setAttribute('aria-label', flipLabel);
   els.cardFlip.title = flipLabel;
-  let mode, remainingMs, totalMs, label, timerLike;
+  let mode, remainingMs, totalMs, label, timerLike, time, ratio; // ratio: 円の、まだ描いていない割合 (0〜1)
   if (inRound) {
     const key = statusKey(roundNow);
     const roundMode = roundNow.phase === 'work' ? 'work' : 'shortBreak';
@@ -403,7 +424,15 @@ function renderTimer(now) {
   } else {
     timerLike = state;
   }
-  if (roundShown) {
+  if (swShown) {
+    // ストップウォッチは 0 から数え上げる (色は作業と同じ。円は 1 分で一周する)
+    const elapsed = elapsedMs(stopwatch, now);
+    mode = 'work';
+    label = t('stopwatch');
+    time = formatStopwatch(elapsed);
+    ratio = 1 - stopwatchRatio(elapsed);
+    els.toggle.textContent = stopwatch.running ? t('pause') : t('start');
+  } else if (roundShown) {
     // 作業はそのコマの終わりまで、休憩は次のコマの始まりまで。下の行には「ラウンドの名前 · コマの名前 (休憩)」
     mode = roundNow.phase === 'work' ? 'work' : 'shortBreak';
     remainingMs = Math.max(0, roundNow.endAt - now);
@@ -416,7 +445,11 @@ function renderTimer(now) {
     label = t(`mode.${mode}`);
     els.toggle.textContent = state.running ? t('pause') : t('start');
   }
-  const time = formatTime(remainingMs);
+  if (!swShown) {
+    time = formatTime(remainingMs);
+    // 実行中に設定を短く変えると 1 を超えうるので 0〜1 に収める
+    ratio = 1 - Math.min(1, Math.max(0, remainingMs / totalMs));
+  }
   els.time.textContent = time;
   els.label.textContent = label;
   // 再生中の画面の上にも、残り時間とモードを小さく出す
@@ -429,9 +462,7 @@ function renderTimer(now) {
     tab.classList.toggle('active', tab.dataset.modeTab === mode);
   }
 
-  // 実行中に設定を短く変えると 1 を超えうるので 0〜1 に収める
-  const ratio = Math.min(1, Math.max(0, remainingMs / totalMs));
-  els.progress.style.strokeDashoffset = String(CIRCUMFERENCE * (1 - ratio));
+  els.progress.style.strokeDashoffset = String(CIRCUMFERENCE * ratio);
   // タイマーの下に、小さく今の時刻を出す
   els.clock.textContent = formatClock(now);
   return timerLike;
@@ -443,7 +474,7 @@ const FLIP_HALF_MS = 180;
 let flipping = false;
 
 function flipCard() {
-  if (roundNow === null || flipping) return;
+  if (roundNow === null || flipping || view === 'stopwatch') return;
   const swap = () => {
     cardFace = flipFace(cardFace);
     render();
@@ -465,6 +496,12 @@ function flipCard() {
 }
 
 els.cardFlip.addEventListener('click', flipCard);
+// タイマーとストップウォッチを切り替える。動いているストップウォッチは、タイマーに戻しても止めない
+els.swToggle.addEventListener('click', () => {
+  playClick(effectiveVolume(settings, 'seVolume'), settings.seSound);
+  view = view === 'stopwatch' ? 'timer' : 'stopwatch';
+  render();
+});
 // カードの左右の端を押してもめくる (端の上のボタンなどを押したときは、そのボタンの操作だけにする)
 els.app.addEventListener('click', (e) => {
   if (roundNow === null || e.target.closest('button, a, input, select')) return;
@@ -482,19 +519,34 @@ function saveFocusLog(now = Date.now()) {
   if (!focusDirty) return;
   focusLog = parseFocusLog(focusLog, now); // 3 か月より古い日を忘れる
   save('focusLog', focusLog);
+  save('xp', xp);
   focusSavedAt = now;
   focusDirty = false;
+}
+
+// カードの「Lv N」と、称号 (名前とバッジ)、次のレベルまでの進みのバー
+function renderLevel() {
+  const info = levelInfo(xp);
+  els.level.textContent = t('level', { level: info.level });
+  els.levelBar.style.width = `${info.ratio * 100}%`;
+  const title = titleFor(info.level);
+  els.title.hidden = !title; // Lv0 はまだ称号がないので隠す
+  if (title) {
+    els.titleName.textContent = t(`title.${title.id}`);
+    els.titleBadge.dataset.tier = title.tier;
+  }
 }
 
 // 前に数えたときから now までの作業の時間を、今やっている予定に足す。画面の更新ごとに加えて、
 // タイマーの状態を変える直前 (スタート・一時停止・スキップなど) にも呼ぶ。
 // そうすると、スタートを押す前の時間は数えず、一時停止・スキップの直前までの時間も漏れない
 function recordFocusTime(now) {
-  // 通常のタイマーの作業と、ラウンドの作業 (コマ) のうち長いほう (両方が動いていても、同じ時間を 2 回数えない)
-  const ms = Math.max(focusStepMs(state, lastFocusAt, now), roundFocusMs(rounds, lastFocusAt, now));
+  // 通常のタイマーの作業・ラウンドの作業 (コマ)・ストップウォッチのうち最も長いもの (重なって動いていても、同じ時間を何回も数えない)
+  const ms = Math.max(focusStepMs(state, lastFocusAt, now), roundFocusMs(rounds, lastFocusAt, now), stopwatchFocusMs(stopwatch, lastFocusAt, now));
   if (ms > 0) {
     // その日の合計 (予定がなくても足す) と、今やっている予定
     focusLog = addFocusTime(focusLog, toDateKey(new Date(now)), [TOTAL_ID, ...ongoingItems(rounds, planEvents(), now)], ms);
+    xp = addXpMs(xp, ms);
     focusDirty = true;
   }
   lastFocusAt = now;
@@ -564,10 +616,15 @@ function onControl(button, action) {
   });
 }
 onControl(els.toggle, () => {
+  if (view === 'stopwatch') {
+    stopwatch = stopwatch.running ? pauseStopwatch(stopwatch, Date.now()) : startStopwatch(stopwatch, Date.now());
+    return;
+  }
   state = state.running ? pause(state, Date.now()) : start(state, Date.now());
 });
 onControl(els.reset, () => {
-  state = reset(state, settings);
+  if (view === 'stopwatch') stopwatch = resetStopwatch();
+  else state = reset(state, settings);
 });
 onControl(els.skip, () => {
   state = skip(state, settings, Date.now());
