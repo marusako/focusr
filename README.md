@@ -185,6 +185,7 @@ Android 版と同じ画面を、ブラウザーでそのまま使えます。And
 - **曲・壁紙の取り込み**：Android のファイル選択の画面で選び、アプリの中（IndexedDB）にしまいます（`src/web-media.js`）。アプリを更新しても残りますが、アンインストールすると消えます
 - **データの書き出し・読み込み**：1 つの JSON ファイルです（`src/web-data.js`・`src/data-file.js`）。書き出しは Android の共有の画面で、ドライブや「ファイル」アプリなどに送ります。以前の Windows 版で書き出したファイルも読み込めます
 - **外部カレンダー**：iCal 形式の非公開 URL で取り込めます。URL は、このアプリの小さな部品（`mobile/UrlVault.java`）が Android の Keystore の鍵で暗号化して保存し、書き出しのファイルには入れません。.ics は Capacitor の CapacitorHttp で読みます（画面の CSP はそのまま）。読み直すのは、開いたときと、アプリが動いている間の 30 分ごとです
+- **作業中のアプリの制限**：設定の「一般」タブでオンにし、止めるアプリを選ぶと、作業のタイマー（通常のタイマーの「作業」とラウンドの作業のコマ）が動いている間、そのアプリを開くと「作業中」の画面（残り時間と「ホームに戻る」）が重なります。休憩中・一時停止中・止まっているときは開けます。ラウンドの作業のコマは時計どおりに進むので、一時停止では解除できません。設定で「制限する」をオフにすると解除できます。Android の設定で「使用状況へのアクセス」と「ほかのアプリの上に重ねて表示」の許可が要ります。作業の時間帯をフォアグラウンドサービスに渡すので、画面が裏にあっても動きます（`src/app-block.js`・`mobile/AppBlock.java`・`mobile/AppBlockService.java`。決めたことは `docs/plans/app-block.md`）
 - **アイコン**：`mobile/res` の絵です。ビルドのときに、Capacitor の初めのアイコンと置きかえます
 
 ## ファイル構成
@@ -230,9 +231,11 @@ src/back-action.js 「1 つ戻る」（Esc・Android の「戻る」）で何を
 src/update-status.js 更新のお知らせのバナーの状態遷移
 src/mobile-notice.js Android 版で、タイマーの終わりの通知を予約し直す・取り消す決まり
 src/mobile-update.js Android 版の更新のお知らせ（版の比べ方・versionCode・Release から APK を探す）
+src/app-block.js Android 版の作業中のアプリの制限（作業の時間帯・止めるアプリの整理・設定の欄の様子）
 capacitor.config.json Android 版（Capacitor）の設定
 mobile/MainActivity.java Android 版の画面（最初から全画面にする。ビルドのときに Capacitor が作るものと置きかえる）
 mobile/UrlVault.java Android 版で外部カレンダーの URL を暗号化する部品（Keystore の鍵で AES-GCM）
+mobile/AppBlock.java・AppBlockService.java Android 版で、作業中に選んだアプリを開けなくする部品
 release-notes/     リリースごとのタイトルと説明文（v<番号>.md）
 scripts/           リリース用の補助スクリプト（説明文の取り出しと確認）
 test/              ロジックのテストと、全ファイルの構文チェック

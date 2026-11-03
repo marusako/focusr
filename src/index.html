@@ -578,6 +578,19 @@
           <button type="button" class="secondary small" id="web-notice-allow" data-i18n="noticeAllow"></button>
         </div>
       </div>
+      <!-- 作業中のアプリの制限 (Android 版だけ。renderer.js の renderAppBlock) -->
+      <div class="data-tools" id="app-block-section" hidden>
+        <h3 class="section-title" data-i18n="appBlockTitle"></h3>
+        <p class="hint" data-i18n="appBlockHint"></p>
+        <label class="check-row"><input type="checkbox" id="app-block-enabled"><span data-i18n="appBlockEnable"></span></label>
+        <p class="hint" id="app-block-permission" data-i18n="appBlockPermission" hidden></p>
+        <div class="data-buttons">
+          <button type="button" class="secondary small" id="app-block-usage" data-i18n="appBlockUsageAccess" hidden></button>
+          <button type="button" class="secondary small" id="app-block-overlay" data-i18n="appBlockOverlayAccess" hidden></button>
+          <button type="button" class="secondary small" id="app-block-pick" aria-expanded="false" hidden></button>
+        </div>
+        <div class="app-block-list" id="app-block-list" hidden></div>
+      </div>
       <!-- データの書き出し・読み込み (Android 版・Web 版で出す)。取り込んだ曲・壁紙のファイルは含めない -->
       <div class="data-tools">
         <h3 class="section-title" data-i18n="dataTitle"></h3>

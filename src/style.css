@@ -1108,6 +1108,9 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible), select:focus:
 .data-tools .hint { margin: 0; }
 .data-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
 .data-buttons button[hidden] { display: none; }
+.check-row { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.app-block-list { display: grid; gap: 2px; max-height: 240px; overflow-y: auto; padding: 4px 0; }
+.app-block-list[hidden] { display: none; }
 
 /* 予定の追加・編集のフォーム */
 .event-form { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--surface); }
