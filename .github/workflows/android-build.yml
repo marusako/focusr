@@ -96,27 +96,19 @@ jobs:
           grep -q 'PACKAGE_USAGE_STATS' "$M" || { echo "::error::作業中のアプリの制限の権限を AndroidManifest.xml に足せなかった"; exit 1; }
           grep -q 'EMERGENCY_ASSISTANCE' "$M" || { echo "::error::queries を AndroidManifest.xml に足せなかった"; exit 1; }
           grep -nE 'xmlns:tools|AppBlockService|SPECIAL_USE|PACKAGE_USAGE_STATS|SYSTEM_ALERT_WINDOW|queries' "$M"
-      - name: アプリの中からの更新の部品 (mobile/AppUpdate.java) の受け取り口と権限を足す
-        # REQUEST_INSTALL_PACKAGES は「不明なアプリのインストール」を使うのに要る。UPDATE_PACKAGES_WITHOUT_USER_ACTION は、
-        # Android 12 以降で、前回の更新をこのアプリが入れていれば確認の画面なしで入れ替えるための権限。
-        # 受け取り口 (receiver) は、インストールの結果を受け取る (外から呼べない)。
-        # 開発版は更新を確かめない (src/renderer.js の isDevAppId) ので、2 つの権限は足さない。
-        # 2026-11-03、権限を足した開発版が Google Play プロテクトに「有害なアプリ」として止められた。
-        # 「ほかのアプリの上に重ねて表示」と「ほかのアプリを入れる」の組み合わせが原因か (推測) を、開発版で確かめるためでもある
-        env:
-          VARIANT: ${{ inputs.variant }}
+      - name: アプリの中からの更新の部品 (mobile/AppUpdate.java) がインストールの権限を要らないことを確かめる
+        # AppUpdate.java はダウンロードだけを Android の DownloadManager に頼み、インストールは Android に任せる。
+        # なので、受け取り口 (receiver) も権限も足さない。
+        # 2026-11-03、REQUEST_INSTALL_PACKAGES などを足した開発版が Google Play プロテクトに「有害なアプリ」として止められたため、
+        # 完成版にも開発版にも入っていないことを確かめる (Capacitor の初めの AndroidManifest.xml にもない)
         run: |
           M=android/app/src/main/AndroidManifest.xml
-          sed -i 's#</application>#    <receiver android:name=".AppUpdateReceiver" android:exported="false" />\n    </application>#' "$M"
-          grep -q 'AppUpdateReceiver' "$M" || { echo "::error::AppUpdateReceiver を AndroidManifest.xml に足せなかった"; exit 1; }
-          if [ "$VARIANT" != dev ]; then
-            sed -i 's#</manifest>#    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />\n</manifest>#' "$M"
-            grep -q 'REQUEST_INSTALL_PACKAGES' "$M" || { echo "::error::REQUEST_INSTALL_PACKAGES を AndroidManifest.xml に足せなかった"; exit 1; }
-            grep -q 'UPDATE_PACKAGES_WITHOUT_USER_ACTION' "$M" || { echo "::error::UPDATE_PACKAGES_WITHOUT_USER_ACTION を AndroidManifest.xml に足せなかった"; exit 1; }
-          elif grep -q 'REQUEST_INSTALL_PACKAGES' "$M"; then
-            echo "::error::開発版に REQUEST_INSTALL_PACKAGES が入っている"; exit 1
-          fi
-          grep -nE 'AppUpdateReceiver|REQUEST_INSTALL_PACKAGES|UPDATE_PACKAGES_WITHOUT_USER_ACTION' "$M"
+          for P in REQUEST_INSTALL_PACKAGES UPDATE_PACKAGES_WITHOUT_USER_ACTION; do
+            if grep -q "$P" "$M"; then
+              echo "::error::$P が AndroidManifest.xml に入っている"; exit 1
+            fi
+          done
+          echo "インストールの権限は入っていない"
       - name: 版の番号を入れる (versionName は package.json の version、versionCode は版から作る。src/mobile-update.js)
         run: |
           VERSION=$(node -p "require('./package.json').version")

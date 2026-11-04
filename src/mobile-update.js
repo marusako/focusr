@@ -1,7 +1,7 @@
 // スマホ版 (Capacitor) の更新のお知らせの決まりごと (画面 (DOM) に依存しない純粋な関数)。
 // APK は、GitHub Release に focusr-<版>.apk として置く (.github/workflows/android-build.yml)。
 // スマホ版は起動したときに最新の Release を見て、今より新しい版の APK があれば知らせる。
-// アプリの中で APK をダウンロードして Android のインストールの仕組みに渡す (mobile/AppUpdate.java)。
+// アプリの中で APK をダウンロードし、インストールは Android に任せる (mobile/AppUpdate.java)。
 // 使えないとき・失敗したときは、ブラウザーで Release のページを開いて、利用者に入れてもらう
 const VERSION = /^v?(\d+)\.(\d+)\.(\d+)$/;
 // 2026-11-03 に、リポジトリの名前とアプリの識別子も focusr にそろえた。識別子が変わったので、このコードのアプリは

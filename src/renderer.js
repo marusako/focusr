@@ -3309,7 +3309,7 @@ function dispatchUpdate(event) {
 const UPDATE_BUTTONS = {
   update: { label: 'updateNow' },
   later: { label: 'later', ghost: true },
-  allow: { label: 'updateAllow' },
+  open: { label: 'updateOpen' },
   retry: { label: 'updateRetry' },
   browser: { label: 'updateBrowser', ghost: true },
 };
@@ -3342,7 +3342,8 @@ function renderUpdate() {
 }
 
 // スマホ版 (Capacitor): 起動したときに GitHub の最新の Release を 1 回だけ見て、新しい版の APK があれば同じバナーで知らせる。
-// 「更新する」で、アプリの中で APK をダウンロードして入れる (mobile/AppUpdate.java)。許可がないとき・失敗したときは、
+// 「更新する」で、アプリの中で APK をダウンロードする (mobile/AppUpdate.java。Android のダウンロードの仕組みに頼む)。
+// インストールは Android がする (終わりの通知か、「ダウンロードを開く」から)。失敗したときは、
 // ブラウザーで Release のページを開く形にも切り替えられる (AppUpdate がない古い作りのときは、最初からそうする)
 const mobileApp = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins?.App ?? null : null;
 const appUpdate = mobileApp ? window.Capacitor.Plugins?.AppUpdate ?? null : null;
@@ -3375,22 +3376,18 @@ function openReleasePage() {
   dispatchUpdate({ type: 'dismiss' });
 }
 
-// 更新の流れ (許可の確認 → ダウンロード → インストール) が動いている間は true。二重押しで流れを重ねないための印
+// ダウンロードが動いている間は true。二重押しで流れを重ねないための印
 let updateRunning = false;
 
-// 許可を確かめ → ダウンロード → インストール。どこかで失敗したら failed にする
+// ダウンロードする。失敗したら failed にする
 async function startUpdate() {
   if (!appUpdate || !mobileApkUrl) return openReleasePage();
   if (updateRunning) return;
   updateRunning = true;
   try {
-    // 許可の確認を待つ間にボタンが残って二重に押されないよう、先に「ダウンロード中」にする (許可がなければ下で needsPermission に変える)
     dispatchUpdate({ type: 'download' });
-    const { allowed } = await appUpdate.canInstall();
-    if (!allowed) return dispatchUpdate({ type: 'needsPermission' });
-    await appUpdate.download({ url: mobileApkUrl });
-    dispatchUpdate({ type: 'install' });
-    await appUpdate.install();
+    await appUpdate.download({ url: mobileApkUrl, version: updateState.version });
+    dispatchUpdate({ type: 'downloaded' });
   } catch {
     dispatchUpdate({ type: 'fail' });
   } finally {
@@ -3400,7 +3397,8 @@ async function startUpdate() {
 
 function onUpdateAction(kind) {
   if (kind === 'update') startUpdate();
-  else if (kind === 'allow') appUpdate.openInstallSettings().catch(() => dispatchUpdate({ type: 'fail' }));
+  // ダウンロードの一覧を開けなければ、Release のページを開く (「もう一度」にすると、ダウンロードできた APK を消して取り直すため)
+  else if (kind === 'open') appUpdate.openDownloads().catch(() => openReleasePage());
   else if (kind === 'retry') {
     if (updateRunning) return;
     dispatchUpdate({ type: 'retry' });
@@ -3414,19 +3412,6 @@ if (mobileApp) {
   if (appUpdate) {
     appUpdate.addListener('updateProgress', ({ received, total }) => {
       if (total > 0) dispatchUpdate({ type: 'progress', progress: received / total });
-    });
-    // インストールが失敗・取り消された (成功したときはアプリが入れ替わるので、知らせは来ない)
-    appUpdate.addListener('updateResult', ({ ok }) => {
-      if (!ok) dispatchUpdate({ type: 'fail' });
-    });
-    // 設定で許可して戻ってきたら、許可されていれば自動で更新を始める
-    document.addEventListener('visibilitychange', async () => {
-      if (document.visibilityState !== 'visible' || updateState.phase !== 'needsPermission') return;
-      try {
-        if ((await appUpdate.canInstall()).allowed) startUpdate();
-      } catch {
-        // 確かめられなければ、そのままボタンを残す
-      }
     });
   }
   // Android の「戻る」(画面端のスワイプ・戻るボタン): Esc と同じく、開いているものを手前から 1 つずつ閉じる。

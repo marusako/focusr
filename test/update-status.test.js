@@ -4,6 +4,12 @@ import { INITIAL_UPDATE_STATE, nextUpdateState, isBannerVisible, updateBannerVie
 
 const run = (...events) => events.reduce(nextUpdateState, INITIAL_UPDATE_STATE);
 const available = { type: 'available', version: '1.2.0' };
+const download = { type: 'download' };
+const downloadingState = () => run(available, download);
+const downloadedState = () => run(available, download, { type: 'downloaded' });
+const failedState = () => run(available, { type: 'fail' });
+const hiddenState = () => run(available, { type: 'dismiss' });
+const everyState = () => [run(), run(available), downloadingState(), downloadedState(), failedState(), hiddenState()];
 
 test('最初の状態は idle で、phase・version・progress を持つ。バナーは出さない', () => {
   assert.equal(INITIAL_UPDATE_STATE.phase, 'idle');
@@ -20,68 +26,85 @@ test('新しい版が見つかったら、バージョン付きで案内する',
 });
 
 test('「あとで」で閉じる (dismiss) と hidden になり、バナーは消える', () => {
-  const s = run(available, { type: 'dismiss' });
+  const s = hiddenState();
   assert.equal(s.phase, 'hidden');
   assert.equal(isBannerVisible(s), false);
 });
 
-test('許可がないとき (needsPermission) は needsPermission になる', () => {
-  const s = run(available, { type: 'needsPermission' });
-  assert.equal(s.phase, 'needsPermission');
-  assert.equal(s.version, '1.2.0', '版は残る');
-});
-
 test('ダウンロードを始める (download) と downloading で progress は 0', () => {
-  const s = run(available, { type: 'download' });
+  const s = downloadingState();
   assert.equal(s.phase, 'downloading');
   assert.equal(s.progress, 0);
   assert.equal(s.version, '1.2.0');
 });
 
 test('progress: downloading のとき、進み具合を更新する', () => {
-  const s = run(available, { type: 'download' }, { type: 'progress', progress: 0.4 });
+  const s = run(available, download, { type: 'progress', progress: 0.4 });
   assert.equal(s.phase, 'downloading');
   assert.equal(s.progress, 0.4);
 });
 
 test('progress: 0〜1 に収める', () => {
-  const over = run(available, { type: 'download' }, { type: 'progress', progress: 1.7 });
+  const over = run(available, download, { type: 'progress', progress: 1.7 });
   assert.equal(over.progress, 1, '1 より大きければ 1');
-  const under = run(available, { type: 'download' }, { type: 'progress', progress: -0.5 });
+  const under = run(available, download, { type: 'progress', progress: -0.5 });
   assert.equal(under.progress, 0, '0 より小さければ 0');
 });
 
 test('progress: 減らさない (遅れて届いた小さい値は無視する)', () => {
-  const s = run(available, { type: 'download' }, { type: 'progress', progress: 0.6 }, { type: 'progress', progress: 0.3 });
+  const s = run(available, download, { type: 'progress', progress: 0.6 }, { type: 'progress', progress: 0.3 });
   assert.equal(s.progress, 0.6);
 });
 
 test('progress: downloading 以外のときは何も変えない', () => {
-  for (const before of [run(), run(available), run(available, { type: 'needsPermission' }), run(available, { type: 'download' }, { type: 'install' }), run(available, { type: 'fail' }), run(available, { type: 'dismiss' })]) {
+  for (const before of [run(), run(available), downloadedState(), failedState(), hiddenState()]) {
     const after = nextUpdateState(before, { type: 'progress', progress: 0.5 });
     assert.deepEqual(after, before, `${before.phase} のときは変わらない`);
   }
 });
 
-test('install で installing、fail で failed になる', () => {
-  const installing = run(available, { type: 'download' }, { type: 'install' });
-  assert.equal(installing.phase, 'installing');
-  const failed = run(available, { type: 'download' }, { type: 'fail' });
+test('downloaded: downloading のとき downloaded になり、版は残る', () => {
+  const s = downloadedState();
+  assert.equal(s.phase, 'downloaded');
+  assert.equal(s.version, '1.2.0');
+  assert.equal(isBannerVisible(s), true);
+});
+
+test('downloaded: downloading 以外のときは何も変えない', () => {
+  for (const before of [run(), run(available), failedState(), hiddenState(), downloadedState()]) {
+    assert.deepEqual(nextUpdateState(before, { type: 'downloaded' }), before, `${before.phase} のときは変わらない`);
+  }
+});
+
+test('fail で failed になり、版は残る (もう一度のため)', () => {
+  const failed = run(available, download, { type: 'fail' });
   assert.equal(failed.phase, 'failed');
-  assert.equal(failed.version, '1.2.0', '失敗しても版は残る (もう一度のため)');
+  assert.equal(failed.version, '1.2.0');
   assert.equal(isBannerVisible(failed), true);
 });
 
-test('retry: failed と needsPermission のときだけ available に戻す', () => {
+test('fail: 「あとで」で閉じた (hidden) あとは、失敗しても出さない (ダウンロード中に閉じられるため)', () => {
+  const hidden = run(available, download, { type: 'dismiss' });
+  assert.deepEqual(nextUpdateState(hidden, { type: 'fail' }), hidden);
+});
+
+test('retry: failed のときだけ available に戻す', () => {
   const fromFailed = run(available, { type: 'fail' }, { type: 'retry' });
   assert.equal(fromFailed.phase, 'available');
   assert.equal(fromFailed.version, '1.2.0');
-  const fromPermission = run(available, { type: 'needsPermission' }, { type: 'retry' });
-  assert.equal(fromPermission.phase, 'available');
-  assert.equal(fromPermission.version, '1.2.0');
-  for (const before of [run(), run(available), run(available, { type: 'download' }), run(available, { type: 'download' }, { type: 'install' }), run(available, { type: 'dismiss' })]) {
+  for (const before of [run(), run(available), downloadingState(), downloadedState(), hiddenState()]) {
     assert.deepEqual(nextUpdateState(before, { type: 'retry' }), before, `${before.phase} のときは変わらない`);
   }
+});
+
+test('前の形の出来事 needsPermission・install は何も変えない (状態をそのまま返す)', () => {
+  for (const type of ['needsPermission', 'install']) {
+    for (const before of everyState()) {
+      assert.deepEqual(nextUpdateState(before, { type }), before, `${before.phase} に ${type} を渡しても変わらない`);
+    }
+  }
+  const s = downloadingState();
+  assert.equal(nextUpdateState(s, { type: 'install' }), s, '同じ状態を返す');
 });
 
 test('知らない出来事では変わらない', () => {
@@ -92,18 +115,17 @@ test('知らない出来事では変わらない', () => {
 test('状態を直接書き換えない (前の状態はそのまま)', () => {
   const before = run(available);
   const snapshot = { ...before };
-  nextUpdateState(before, { type: 'download' });
+  nextUpdateState(before, download);
   assert.deepEqual(before, snapshot);
 });
 
-test('isBannerVisible: available・needsPermission・downloading・installing・failed のとき true、idle・hidden は false', () => {
+test('isBannerVisible: available・downloading・downloaded・failed のとき true、idle・hidden は false', () => {
   assert.equal(isBannerVisible(run(available)), true);
-  assert.equal(isBannerVisible(run(available, { type: 'needsPermission' })), true);
-  assert.equal(isBannerVisible(run(available, { type: 'download' })), true);
-  assert.equal(isBannerVisible(run(available, { type: 'download' }, { type: 'install' })), true);
-  assert.equal(isBannerVisible(run(available, { type: 'fail' })), true);
+  assert.equal(isBannerVisible(downloadingState()), true);
+  assert.equal(isBannerVisible(downloadedState()), true);
+  assert.equal(isBannerVisible(failedState()), true);
   assert.equal(isBannerVisible(run()), false);
-  assert.equal(isBannerVisible(run(available, { type: 'dismiss' })), false);
+  assert.equal(isBannerVisible(hiddenState()), false);
 });
 
 test('updateBannerView: available', () => {
@@ -112,18 +134,13 @@ test('updateBannerView: available', () => {
   assert.deepEqual(v.actions, ['update', 'later']);
 });
 
-test('updateBannerView: needsPermission', () => {
-  const v = updateBannerView(run(available, { type: 'needsPermission' }));
-  assert.equal(v.text, 'updateNeedsPermission');
-  assert.deepEqual(v.actions, ['allow', 'later']);
-});
-
-test('updateBannerView: downloading は percent (0〜100 の整数) を持ち、ボタンはない', () => {
-  const at = (p) => updateBannerView(run(available, { type: 'download' }, { type: 'progress', progress: p }));
-  const start = updateBannerView(run(available, { type: 'download' }));
+// 通信が切れると、Android のダウンロードは失敗にせず、通信が戻るのを待つ。止まって見えても閉じられるように「あとで」を出す
+test('updateBannerView: downloading は percent (0〜100 の整数) と「あとで」を持つ', () => {
+  const at = (p) => updateBannerView(run(available, download, { type: 'progress', progress: p }));
+  const start = updateBannerView(downloadingState());
   assert.equal(start.text, 'updateDownloading');
   assert.equal(start.percent, 0);
-  assert.deepEqual(start.actions, []);
+  assert.deepEqual(start.actions, ['later']);
   assert.equal(at(0.5).percent, 50);
   assert.equal(at(1).percent, 100);
   const odd = at(0.456).percent;
@@ -131,25 +148,25 @@ test('updateBannerView: downloading は percent (0〜100 の整数) を持ち、
   assert.ok(odd >= 45 && odd <= 46, `0.456 は 45 か 46 (実際: ${odd})`);
 });
 
-test('updateBannerView: installing', () => {
-  const v = updateBannerView(run(available, { type: 'download' }, { type: 'install' }));
-  assert.equal(v.text, 'updateInstalling');
-  assert.deepEqual(v.actions, []);
+test('updateBannerView: downloaded は「ダウンロードを開く」と「あとで」', () => {
+  const v = updateBannerView(downloadedState());
+  assert.equal(v.text, 'updateDownloaded');
+  assert.deepEqual(v.actions, ['open', 'later']);
 });
 
 test('updateBannerView: failed', () => {
-  const v = updateBannerView(run(available, { type: 'fail' }));
+  const v = updateBannerView(failedState());
   assert.equal(v.text, 'updateFailed');
   assert.deepEqual(v.actions, ['retry', 'browser', 'later']);
 });
 
 test('updateBannerView: downloading 以外では percent を出さない', () => {
-  for (const s of [run(available), run(available, { type: 'needsPermission' }), run(available, { type: 'download' }, { type: 'install' }), run(available, { type: 'fail' })]) {
+  for (const s of [run(available), downloadedState(), failedState()]) {
     assert.ok(updateBannerView(s).percent == null, `${s.phase} には percent がない`);
   }
 });
 
 test('updateBannerView: idle・hidden は null', () => {
   assert.equal(updateBannerView(run()), null);
-  assert.equal(updateBannerView(run(available, { type: 'dismiss' })), null);
+  assert.equal(updateBannerView(hiddenState()), null);
 });
